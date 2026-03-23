@@ -362,15 +362,15 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 
 <script>
 // ── CONFIG ─────────────────────────────────
-const SUPABASE_URL = 'https://lznnetxeklmdrykxtsbm.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_VjMTmq1dEtizfGRT_QAPZw_bm__LQnn';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 let MEMBERS = [
-  {id:'khan',    name:'Khan',       email:'abuabdullah.be@yahoo.com',emoji:'👑',color:'#4d96ff',isAdmin:true },
-  {id:'kaatuva', name:'Kaatuva',   email:'pkmkamarudeen007@gmail.com',emoji:'🔥',color:'#ff6b6b',isAdmin:false},
-  {id:'naina',   name:'Naina',     email:'nainamohamed8760@gmail.com',emoji:'💫',color:'#ff92d0',isAdmin:false},
-  {id:'asif',    name:'Asif Bidni',email:'mohamedkasif235@gmail.com',emoji:'⚡',color:'#ffd93d',isAdmin:false},
-  {id:'niyaz',   name:'Niyaz',     email:'niyaz786@gmail.com',emoji:'🌿',color:'#6bcb77',isAdmin:false},
+  {id:'khan',    name:'Khan',       email:'',emoji:'👑',color:'#4d96ff',isAdmin:true },
+  {id:'kaatuva', name:'Kaatuva',   email:'',emoji:'🔥',color:'#ff6b6b',isAdmin:false},
+  {id:'naina',   name:'Naina',     email:'',emoji:'💫',color:'#ff92d0',isAdmin:false},
+  {id:'asif',    name:'Asif Bidni',email:'',emoji:'⚡',color:'#ffd93d',isAdmin:false},
+  {id:'niyaz',   name:'Niyaz',     email:'',emoji:'🌿',color:'#6bcb77',isAdmin:false},
 ];
 
 const CAT_ICONS={food:'🍔',fuel:'⛽',workshop:'🔧',market:'🛒',drinks:'🧃',maintenance:'🔩',other:'📦'};
@@ -467,7 +467,7 @@ async function sendOTP(){
     },1000);return;
   }
   try{
-    const{error}=await sb.auth.signInWithOtp({email, options:{shouldCreateUser:false, emailRedirectTo:null}});
+    const{error}=await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true, emailRedirectTo:null}});
     btn.innerHTML='📨 Send OTP';btn.disabled=false;
     if(error){showErr('err2','❌ '+error.message);return;}
     showSucc('succ2',`✅ OTP sent to ${email}`);
