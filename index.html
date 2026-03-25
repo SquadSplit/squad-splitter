@@ -161,6 +161,24 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
   .bottom-nav{left:50%;}
   #admin-overlay .admin-panel{margin:0 auto;}
 }
+
+.dhs {
+  display:inline-flex;
+  align-items:center;
+  font-size:.92em;
+  font-weight:900;
+  line-height:1;
+  margin-right:1px;
+  position:relative;
+  top:0px;
+}
+.dhs svg {
+  width:.85em;
+  height:.85em;
+  vertical-align:middle;
+  fill:currentColor;
+  display:inline-block;
+}
 </style>
 </head>
 <body>
@@ -172,8 +190,8 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <div class="login-logo">
       <span class="logo-icon">💸</span>
       <h1>Squad Splitter</h1>
-      <p>Track • Split • Settle with your crew</p>
-      <p style='font-size:.65rem;color:#444466;margin-top:2px'>v3.1 — production</p>
+      <p>Track • Split • Settle with your crew  •  🇦🇪 AED</p>
+      <p style='font-size:.65rem;color:#444466;margin-top:2px'>v4.0 — production</p>
     </div>
     <div id="step-1" class="step active">
       <label class="form-label">👤 Who are you?</label>
@@ -241,7 +259,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <div class="card">
       <div class="form-row">
         <div class="fg"><label>📝 Name</label><input type="text" id="inp-name" placeholder="Fuel, Food..." /></div>
-        <div class="fg"><label>💰 Amount ₹</label><input type="number" id="inp-amount" placeholder="0" /></div>
+        <div class="fg"><label>💰 💰 <span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span> Amount</label><input type="number" id="inp-amount" placeholder="0" /></div>
       </div>
       <div class="form-row">
         <div class="fg"><label>👤 Paid By</label><select id="inp-paidby"></select></div>
@@ -292,7 +310,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
         <div class="fg"><label>Who Paid</label><select id="settle-from"></select></div>
         <div class="fg"><label>Paid To</label><select id="settle-to"></select></div>
       </div>
-      <div class="fg"><label>Amount ₹</label><input type="number" id="settle-amount" placeholder="0" /></div>
+      <div class="fg"><label>💰 <span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span> Amount</label><input type="number" id="settle-amount" placeholder="0" /></div>
       <button class="btn-add" onclick="recordSettlement()">✅ Record Settlement</button>
     </div>
 
@@ -309,7 +327,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
           <div class="fg"><label>From</label><select id="pb-from"></select></div>
           <div class="fg"><label>To</label><select id="pb-to"></select></div>
         </div>
-        <div class="fg"><label>Amount ₹</label><input type="number" id="pb-amount" placeholder="0" /></div>
+        <div class="fg"><label>💰 <span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span> Amount</label><input type="number" id="pb-amount" placeholder="0" /></div>
         <button class="btn-add" onclick="addPrevBal()">Add Balance</button>
       </div>
     </div>
@@ -367,7 +385,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
             <div><div class="edit-label">From</div><select class="edit-inp" id="apb-from"></select></div>
             <div><div class="edit-label">To</div><select class="edit-inp" id="apb-to"></select></div>
           </div>
-          <div style="margin-bottom:10px;"><div class="edit-label">Amount ₹</div><input type="number" class="edit-inp" id="apb-amount" placeholder="0" style="width:100%;" /></div>
+          <div style="margin-bottom:10px;"><div class="edit-label"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span> Amount</div><input type="number" class="edit-inp" id="apb-amount" placeholder="0" style="width:100%;" /></div>
           <button class="btn-save-member" onclick="adminAddPrevBal()" style="margin-top:0;">➕ Add Balance</button>
         </div>
       </div>
@@ -667,7 +685,7 @@ function showPersonDetail(memberId){
   html+=`<div style="background:var(--card2);border-radius:14px;padding:14px;margin-bottom:16px;border:1px solid ${totalNet>=0?'rgba(107,203,119,.3)':'rgba(255,107,107,.3)'}">
     <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px;">OVERALL BALANCE</div>
     <div style="font-family:'Fredoka One',cursive;font-size:1.8rem;color:${totalNet>=0?'var(--green)':'var(--red)'}">
-      ${totalNet>=0?'+':''}₹${Math.abs(totalNet).toFixed(0)}</div>
+      ${totalNet>=0?'+':''}<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${Math.abs(totalNet).toFixed(0)}</div>
     <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${totalNet>=0?'Gets back from squad':'Owes to squad'}</div>
   </div>`;
 
@@ -692,13 +710,13 @@ function showPersonDetail(memberId){
     html+=`<div style="background:var(--card2);border-radius:12px;padding:12px;margin-bottom:8px;border-left:3px solid ${net>=0?'var(--green)':'var(--red)'}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="font-weight:800;font-size:.85rem;color:var(--accent4)">${mLabel}</span>
-        <span style="font-family:'Fredoka One',cursive;color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${Math.abs(net).toFixed(0)}</span>
+        <span style="font-family:'Fredoka One',cursive;color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${Math.abs(net).toFixed(0)}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.72rem;">
-        <div style="color:var(--green)">💰 Paid: ₹${paid.toFixed(0)}</div>
-        <div style="color:var(--red)">📊 Share: ₹${share.toFixed(0)}</div>
-        <div style="color:${prevOwed>=0?'var(--green)':'var(--red)'}">📜 Prev: ${prevOwed>=0?'+':''}₹${Math.abs(prevOwed).toFixed(0)}</div>
-        <div style="color:${monthSettled>=0?'var(--green)':'var(--red)'}">✅ Settled: ${monthSettled>=0?'+':''}₹${Math.abs(monthSettled).toFixed(0)}</div>
+        <div style="color:var(--green)">💰 Paid: <span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${paid.toFixed(0)}</div>
+        <div style="color:var(--red)">📊 Share: <span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${share.toFixed(0)}</div>
+        <div style="color:${prevOwed>=0?'var(--green)':'var(--red)'}">📜 Prev: ${prevOwed>=0?'+':''}<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${Math.abs(prevOwed).toFixed(0)}</div>
+        <div style="color:${monthSettled>=0?'var(--green)':'var(--red)'}">✅ Settled: ${monthSettled>=0?'+':''}<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${Math.abs(monthSettled).toFixed(0)}</div>
       </div>
       <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">`;
     
@@ -709,7 +727,7 @@ function showPersonDetail(memberId){
       const iPaid=e.paid_by===memberId;
       html+=`<div style="font-size:.68rem;display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)">
         <span>${CAT_ICONS[e.category]||'📦'} ${e.name}</span>
-        <span>${iPaid?`<span style="color:var(--green)">+₹${e.amount}</span>`:''} ${myShare>0?`<span style="color:var(--red)">-₹${myShare.toFixed(0)}</span>`:''}</span>
+        <span>${iPaid?`<span style="color:var(--green)">+<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${e.amount}</span>`:''} ${myShare>0?`<span style="color:var(--red)">-<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${myShare.toFixed(0)}</span>`:''}</span>
       </div>`;
     });
     if(myExps.length>5)html+=`<div style="font-size:.65rem;color:var(--muted);margin-top:4px">+${myExps.length-5} more expenses...</div>`;
@@ -787,7 +805,7 @@ function renderExpenses(){
     return`<div style="margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="font-size:.78rem;font-weight:800;color:var(--accent4)">📅 ${dl}</span>
-        <span style="font-size:.72rem;color:var(--muted)">₹${dt}</span>
+        <span style="font-size:.72rem;color:var(--muted)"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${dt}</span>
       </div>${exps.map(e=>expCard(e)).join('')}</div>`;
   }).join('');
 }
@@ -805,8 +823,8 @@ function expCard(e){
       <div class="exp-meta" style="color:var(--accent4)">${snames.slice(0,3).join(', ')}${snames.length>3?` +${snames.length-3}`:''}</div>
     </div>
     <div>
-      <div class="exp-amt">₹${e.amount}</div>
-      <div class="exp-share">₹${share}/head</div>
+      <div class="exp-amt"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${e.amount}</div>
+      <div class="exp-share"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${share}/head</div>
       ${canEdit?`<button class="btn-del" onclick="delExp('${e.id}')">🗑️</button>`:''}
     </div>
   </div>`;
@@ -872,11 +890,11 @@ function renderBalances(){
       const n=net[m.id];
       return`<tr>
         <td><span style="color:${m.color};font-weight:800">${m.emoji} ${m.name}</span></td>
-        <td class="tag-g">₹${paid.toFixed(0)}</td>
-        <td class="tag-r">₹${share.toFixed(0)}</td>
-        <td class="${prev>=0?'tag-g':'tag-r'}">${prev>=0?'+':''}₹${Math.abs(prev).toFixed(0)}</td>
-        <td class="${settled>=0?'tag-g':'tag-r'}">${settled!==0?(settled>=0?'+':'')+'₹'+Math.abs(settled).toFixed(0):'—'}</td>
-        <td class="${n>=0?'tag-g':'tag-r'}" style="font-weight:800">${n>=0?'+':''}₹${Math.abs(n).toFixed(0)}</td>
+        <td class="tag-g"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${paid.toFixed(0)}</td>
+        <td class="tag-r"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${share.toFixed(0)}</td>
+        <td class="${prev>=0?'tag-g':'tag-r'}">${prev>=0?'+':''}<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${Math.abs(prev).toFixed(0)}</td>
+        <td class="${settled>=0?'tag-g':'tag-r'}">${settled!==0?(settled>=0?'+':'')+'<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>'+Math.abs(settled).toFixed(0):'—'}</td>
+        <td class="${n>=0?'tag-g':'tag-r'}" style="font-weight:800">${n>=0?'+':''}<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${Math.abs(n).toFixed(0)}</td>
       </tr>`;
     }).join('')}</tbody>`;
 
@@ -886,7 +904,7 @@ function renderBalances(){
       <div class="b-left"><div style="font-size:1.3rem">${m.emoji}</div>
       <div><div class="b-name" style="color:${m.color}">${m.name}</div>
       <div class="b-sub">${v>=0?'✅ Gets back':'🔴 Owes'} • tap for breakdown</div></div></div>
-      <div class="b-amt ${v>=0?'pos':'neg'}">${v>=0?'+':''}₹${Math.abs(v).toFixed(0)}</div>
+      <div class="b-amt ${v>=0?'pos':'neg'}">${v>=0?'+':''}<span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${Math.abs(v).toFixed(0)}</div>
     </div>`;
   }).join('');
 }
@@ -907,7 +925,7 @@ function renderSettlements(){
       <div class="settle-to">needs to pay</div>
       <div class="settle-from" style="color:${to.color}">${to.emoji} ${to.name}</div></div>
       <div style="font-size:1.5rem;color:var(--muted)">→</div>
-      <div class="settle-amt">₹${t.amount.toFixed(0)}</div>
+      <div class="settle-amt"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${t.amount.toFixed(0)}</div>
     </div>`;
   }).join('');
 
@@ -922,7 +940,7 @@ function renderSettlements(){
       <div><div class="b-name">${f?.emoji} ${f?.name} paid ${t?.emoji} ${t?.name}</div>
       <div class="b-sub">${new Date(s.created_at||Date.now()).toLocaleDateString()}</div></div></div>
       <div>
-        <div class="b-amt pos">₹${s.amount}</div>
+        <div class="b-amt pos"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${s.amount}</div>
         ${currentUser?.isAdmin?`<button class="btn-del" onclick="delSettlement('${s.id}')">🗑️</button>`:''}
       </div>
     </div>`;
@@ -943,7 +961,7 @@ async function recordSettlement(){
     entry.id=Date.now();entry.created_at=new Date().toISOString();settlements.push(entry);
   }
   document.getElementById('settle-amount').value='';
-  showToast(`✅ Settlement recorded! ₹${amt} from ${MEMBERS.find(m=>m.id===from)?.name} to ${MEMBERS.find(m=>m.id===to)?.name}`);
+  showToast(`✅ Settlement recorded! <span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${amt} from ${MEMBERS.find(m=>m.id===from)?.name} to ${MEMBERS.find(m=>m.id===to)?.name}`);
   refresh();
 }
 
@@ -978,7 +996,7 @@ function renderPrevBals(){
     return`<div class="balance-row owes">
       <div class="b-left"><div style="font-size:1.2rem">${f?.emoji}</div>
       <div><div class="b-name">${f?.name} → ${t?.name}</div><div class="b-sub">Month: ${b.month}</div></div></div>
-      <div><div class="b-amt neg">₹${b.amount}</div>
+      <div><div class="b-amt neg"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${b.amount}</div>
       ${currentUser?.isAdmin?`<button class="btn-del" onclick="delPrev('${b.id}')">🗑️</button>`:''}
       </div></div>`;
   }).join('');
@@ -1105,10 +1123,10 @@ function renderAdminExpenses(){
           style="accent-color:var(--accent2);" onchange="updateExpSplit(this,'${e.id}')" />
         ${m.emoji} ${m.name}</label>`).join('');
     return`<div class="exp-edit-card">
-      <div class="exp-edit-title">${CAT_ICONS[e.category]||'📦'} ${e.name} — ₹${e.amount}</div>
+      <div class="exp-edit-title">${CAT_ICONS[e.category]||'📦'} ${e.name} — <span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span>${e.amount}</div>
       <div class="exp-edit-grid">
         <div><div class="edit-label">Name</div><input class="edit-inp" id="ee-name-${e.id}" value="${e.name}" /></div>
-        <div><div class="edit-label">Amount ₹</div><input class="edit-inp" type="number" id="ee-amt-${e.id}" value="${e.amount}" /></div>
+        <div><div class="edit-label"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span> Amount</div><input class="edit-inp" type="number" id="ee-amt-${e.id}" value="${e.amount}" /></div>
         <div><div class="edit-label">Paid By</div>
           <select class="edit-inp" id="ee-paid-${e.id}">${MEMBERS.map(m=>`<option value="${m.id}" ${m.id===e.paid_by?'selected':''}>${m.emoji} ${m.name}</option>`).join('')}</select></div>
         <div><div class="edit-label">Date</div><input class="edit-inp" type="date" id="ee-date-${e.id}" value="${e.date}" /></div>
@@ -1161,7 +1179,7 @@ function renderAdminBalances(){
         <div><div class="edit-label">To</div>
           <select class="edit-inp" id="ab-to-${b.id}">${MEMBERS.map(m=>`<option value="${m.id}" ${m.id===b.to_member?'selected':''}>${m.emoji} ${m.name}</option>`).join('')}</select></div>
       </div>
-      <div style="margin-bottom:8px;"><div class="edit-label">Amount ₹</div>
+      <div style="margin-bottom:8px;"><div class="edit-label"><span class="dhs"><svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><path d="M5,5 L5,115 L45,115 C80,115 100,90 100,60 C100,30 80,5 45,5 Z M20,20 L43,20 C68,20 82,35 82,60 C82,85 68,100 43,100 L20,100 Z"/><rect x="0" y="42" width="72" height="10" rx="2"/><rect x="0" y="62" width="72" height="10" rx="2"/></svg></span> Amount</div>
         <input class="edit-inp" type="number" id="ab-amt-${b.id}" value="${b.amount}" style="width:100%;" /></div>
       <div style="display:flex;gap:8px;">
         <button class="btn-save-exp" onclick="savePrevBal('${b.id}')">💾 Save</button>
