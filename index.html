@@ -276,14 +276,29 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 
   <!-- SETTLE -->
   <div id="page-settle" class="page">
-    <div class="section-title">✅ Settlements</div>
-    <div class="info-box">🎯 Minimum transactions to clear all debts</div>
+    <div class="section-title">✅ Suggested Settlements</div>
+    <div class="info-box">🎯 Minimum transactions to clear all debts this month</div>
     <div class="month-bar">
       <button class="month-nav" onclick="changeMonth(-1)">‹</button>
       <span id="month-label-3"></span>
       <button class="month-nav" onclick="changeMonth(1)">›</button>
     </div>
     <div id="settle-list"></div>
+
+    <div class="section-title" style="margin-top:8px;">💳 Record a Payment</div>
+    <div class="info-box">When someone actually pays — record it here to update balances</div>
+    <div class="card">
+      <div class="form-row">
+        <div class="fg"><label>Who Paid</label><select id="settle-from"></select></div>
+        <div class="fg"><label>Paid To</label><select id="settle-to"></select></div>
+      </div>
+      <div class="fg"><label>Amount ₹</label><input type="number" id="settle-amount" placeholder="0" /></div>
+      <button class="btn-add" onclick="recordSettlement()">✅ Record Settlement</button>
+    </div>
+
+    <div class="section-title" style="margin-top:8px;">📋 Settlement History</div>
+    <div id="settlements-history"></div>
+
     <div class="section-title" style="margin-top:8px;">📜 Previous Balances</div>
     <div class="info-box">Carried forward balances from prior months</div>
     <div id="prev-list"></div>
@@ -364,72 +379,71 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <script>
 // ── CONFIG ─────────────────────────────────
 const SUPABASE_URL = 'https://lznnetxeklmdrykxtsbm.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_VjMTmq1dEtizfGRT_QAPZw_bm__LQnn';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bm5ldHhla2xtZHJ5a3h0c2JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MTIxMDMsImV4cCI6MjA4ODk4ODEwM30.cD_n9iCvTTkwgtwh2Qt8Ux9iJR2OfkgCutC2eif8JQo';
 
-let MEMBERS = [
- {id:'khan',    name:'Khan',       email:'abuabdullah.be@yahoo.com',emoji:'👑',color:'#4d96ff',isAdmin:true },
-  {id:'kaatuva', name:'Kaatuva',   email:'pkmkamarudeen007@gmail.com',emoji:'🔥',color:'#ff6b6b',isAdmin:false},
-  {id:'naina',   name:'Naina',     email:'nainamohamed8760@gmail.com',emoji:'💫',color:'#ff92d0',isAdmin:false},
-  {id:'asif',    name:'Asif Bidni',email:'mohamedkasif235@gmail.com',emoji:'⚡',color:'#ffd93d',isAdmin:false},
-  {id:'niyaz',   name:'Niyaz',     email:'abdullahbinjinnah.hr@gmail.com',emoji:'🌿',color:'#6bcb77',isAdmin:false},
+const DEFAULT_MEMBERS = [
+  {id:'khan',    name:'Khan',       email:'',emoji:'👑',color:'#4d96ff',isAdmin:true },
+  {id:'kaatuva', name:'Kaatuva',   email:'',emoji:'🔥',color:'#ff6b6b',isAdmin:false},
+  {id:'naina',   name:'Naina',     email:'',emoji:'💫',color:'#ff92d0',isAdmin:false},
+  {id:'asif',    name:'Asif Bidni',email:'',emoji:'⚡',color:'#ffd93d',isAdmin:false},
+  {id:'niyaz',   name:'Niyaz',     email:'',emoji:'🌿',color:'#6bcb77',isAdmin:false},
 ];
 
 const CAT_ICONS={food:'🍔',fuel:'⛽',workshop:'🔧',market:'🛒',drinks:'🧃',maintenance:'🔩',other:'📦'};
-const EMOJIS=['👑','🔥','💫','⚡','🌿','😎','🦁','🐯','🦊','🐺','🎯','🚀','💎','🏆','🎸'];
-const COLORS=['#4d96ff','#ff6b6b','#ff92d0','#ffd93d','#6bcb77','#b06aff','#ff922b','#4dd0e1'];
+const EMOJIS=['👑','🔥','💫','⚡','🌿','😎','🦁','🐯','🦊','🐺','🎯','🚀','💎','🏆','🎸','🌙','⭐','🎪','🏄','🎭'];
+const COLORS=['#4d96ff','#ff6b6b','#ff92d0','#ffd93d','#6bcb77','#b06aff','#ff922b','#4dd0e1','#ff6eb4','#a8ff78'];
 
 // ── STATE ───────────────────────────────────
 let sb=null,isDemoMode=true;
 let currentUser=null,selectedId=null,currentEmail='';
 let timerInterval=null;
-let viewMonth='2026-03';
+let viewMonth=new Date().toISOString().slice(0,7);
+let MEMBERS=[];
+let expenses=[],prevBals=[],settlements=[];
 
-let demoExp=[
-  {id:1,name:'Fuel',amount:50,paid_by:'khan',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'fuel',month:'2026-03'},
-  {id:2,name:'Fish',amount:80,paid_by:'khan',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'food',month:'2026-03'},
-  {id:3,name:'Kabab',amount:65,paid_by:'kaatuva',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'food',month:'2026-03'},
-  {id:4,name:'Juice',amount:15,paid_by:'kaatuva',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'drinks',month:'2026-03'},
-  {id:5,name:'Fish Market',amount:15,paid_by:'naina',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'market',month:'2026-03'},
-  {id:6,name:'Water',amount:2,paid_by:'naina',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'other',month:'2026-03'},
-  {id:7,name:'Kit',amount:15,paid_by:'asif',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'other',month:'2026-03'},
-  {id:8,name:'Parts',amount:20,paid_by:'asif',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'maintenance',month:'2026-03'},
-  {id:9,name:'Workshop',amount:100,paid_by:'niyaz',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'workshop',month:'2026-03'},
-  {id:10,name:'Maintenance',amount:50,paid_by:'niyaz',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'maintenance',month:'2026-03'},
-  {id:11,name:'Fuel',amount:40,paid_by:'khan',split_between:['khan','kaatuva','naina'],date:'2026-03-08',category:'fuel',month:'2026-03'},
-  {id:12,name:'Mutton',amount:48,paid_by:'khan',split_between:['khan','kaatuva','naina'],date:'2026-03-08',category:'food',month:'2026-03'},
-  {id:13,name:'Kabab',amount:25,paid_by:'kaatuva',split_between:['khan','kaatuva','naina'],date:'2026-03-08',category:'food',month:'2026-03'},
-  {id:14,name:'Juice',amount:25,paid_by:'kaatuva',split_between:['khan','kaatuva','naina'],date:'2026-03-08',category:'drinks',month:'2026-03'},
-  {id:15,name:'Market',amount:5,paid_by:'naina',split_between:['khan','kaatuva','naina'],date:'2026-03-08',category:'market',month:'2026-03'},
-  {id:16,name:'Water',amount:2,paid_by:'naina',split_between:['khan','kaatuva','naina'],date:'2026-03-08',category:'other',month:'2026-03'},
-];
-let demoPrev=[
-  {id:1,from_member:'kaatuva',to_member:'khan',amount:685,month:'2026-02'},
-  {id:2,from_member:'khan',to_member:'naina',amount:55,month:'2026-02'},
-  {id:3,from_member:'naina',to_member:'khan',amount:65,month:'2026-02'},
-  {id:4,from_member:'naina',to_member:'kaatuva',amount:12,month:'2026-02'},
-  {id:5,from_member:'asif',to_member:'khan',amount:256,month:'2026-02'},
-  {id:6,from_member:'niyaz',to_member:'khan',amount:130,month:'2026-02'},
-];
-let expenses=[],prevBals=[];
+// ── SUPABASE TABLES NEEDED ──────────────────
+// expenses, prev_balances, settlements, members_config
 
 // ── INIT ────────────────────────────────────
-window.onload=()=>{
+window.onload=async()=>{
   if(SUPABASE_URL!=='YOUR_SUPABASE_URL'){
-    try{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);isDemoMode=false;}catch(e){}
+    try{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);isDemoMode=false;}catch(e){isDemoMode=true;}
   }
-  // Load saved members config
-  const savedMembers=localStorage.getItem('sq_members');
-  if(savedMembers) MEMBERS=JSON.parse(savedMembers);
-
+  await loadMembers();
   renderMemberGrid();
   buildOTPBoxes();
   const s=sessionStorage.getItem('sq_user');
-  if(s){currentUser=JSON.parse(s);enterApp();}
-  viewMonth='2026-03';
+  if(s){currentUser=JSON.parse(s);await enterApp();}
 };
 
-function saveMembersToStorage(){
-  localStorage.setItem('sq_members',JSON.stringify(MEMBERS));
+// ── MEMBER CONFIG — persisted in Supabase OR localStorage ──
+async function loadMembers(){
+  if(!isDemoMode&&sb){
+    try{
+      const{data}=await sb.from('members_config').select('*').order('sort_order');
+      if(data&&data.length>0){MEMBERS=data.map(r=>({...r,isAdmin:r.is_admin}));return;}
+    }catch(e){}
+  }
+  // fallback: localStorage
+  const saved=localStorage.getItem('sq_members_v2');
+  MEMBERS=saved?JSON.parse(saved):[...DEFAULT_MEMBERS.map(m=>({...m}))];
+}
+
+async function saveMembers(){
+  localStorage.setItem('sq_members_v2',JSON.stringify(MEMBERS));
+  if(!isDemoMode&&sb){
+    try{
+      await sb.from('members_config').delete().neq('id','__none__');
+      await sb.from('members_config').insert(MEMBERS.map((m,i)=>({
+        id:m.id,name:m.name,email:m.email||'',emoji:m.emoji,
+        color:m.color,is_admin:m.isAdmin||false,sort_order:i
+      })));
+    }catch(e){console.log('members_config save err',e);}
+  }
+}
+
+function saveMembersLocal(){
+  localStorage.setItem('sq_members_v2',JSON.stringify(MEMBERS));
 }
 
 // ── LOGIN ───────────────────────────────────
@@ -449,6 +463,8 @@ function goStep2(){
   if(!selectedId){showErr('err1','⚠️ Please choose your name first!');return;}
   const m=MEMBERS.find(x=>x.id===selectedId);
   document.getElementById('sel-badge').innerHTML=`${m.emoji} ${m.name}${m.isAdmin?' <span class="admin-badge">ADMIN</span>':''}`;
+  // pre-fill email if known
+  if(m.email){document.getElementById('email-input').value=m.email;}
   showStep(2);
 }
 function goStep1(){showStep(1);}
@@ -463,18 +479,18 @@ async function sendOTP(){
   if(isDemoMode){
     setTimeout(()=>{
       btn.innerHTML='📨 Send OTP';btn.disabled=false;
-      showSucc('succ2',`✅ OTP sent to ${email}  (Demo mode — use code: 123456)`);
+      showSucc('succ2',`✅ OTP sent (Demo mode — use code: 123456)`);
       setTimeout(()=>{showStep(3);document.getElementById('otp-sent-to').textContent=`Code sent to ${email}`;startTimer();},1200);
-    },1000);return;
+    },800);return;
   }
   try{
-    const{data,error}=await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true, emailRedirectTo:null}});
-    console.log('OTP debug:',JSON.stringify({data,error}));
+    const{data,error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:null}});
+    console.log('OTP result:',{data,error});
     btn.innerHTML='📨 Send OTP';btn.disabled=false;
-    if(error){showErr('err2','❌ '+error.message+' — code:'+error.status);return;}
+    if(error){showErr('err2','❌ '+error.message);return;}
     showSucc('succ2',`✅ OTP sent to ${email}`);
     setTimeout(()=>{showStep(3);document.getElementById('otp-sent-to').textContent=`Code sent to ${email}`;startTimer();},1200);
-  }catch(e){btn.innerHTML='📨 Send OTP';btn.disabled=false;showErr('err2','❌ Network error. Try again.');}
+  }catch(e){btn.innerHTML='📨 Send OTP';btn.disabled=false;showErr('err2','❌ Network error.');}
 }
 
 async function verifyOTP(){
@@ -483,29 +499,32 @@ async function verifyOTP(){
   const btn=document.getElementById('btn-verify');
   btn.innerHTML='<span class="loader"></span> Verifying...';btn.disabled=true;hideMsg('err3');
   if(isDemoMode){
-    setTimeout(()=>{
-      btn.innerHTML='✅ Verify & Enter App';btn.disabled=false;
+    setTimeout(()=>{btn.innerHTML='✅ Verify & Enter App';btn.disabled=false;
       if(otp==='123456')finishLogin();
-      else showErr('err3','❌ Wrong code. (Demo: use 123456)');
-    },900);return;
+      else showErr('err3','❌ Wrong code. Demo: use 123456');
+    },700);return;
   }
   try{
     const{error}=await sb.auth.verifyOtp({email:currentEmail,token:otp,type:'email'});
     btn.innerHTML='✅ Verify & Enter App';btn.disabled=false;
-    if(error){showErr('err3','❌ Invalid or expired code. Try again.');return;}
+    if(error){showErr('err3','❌ '+error.message);return;}
     finishLogin();
   }catch(e){btn.innerHTML='✅ Verify & Enter App';btn.disabled=false;showErr('err3','❌ Verification failed.');}
 }
+
 function finishLogin(){
   const m=MEMBERS.find(x=>x.id===selectedId);
-  m.email=currentEmail;saveMembersToStorage();
-  currentUser={...m};sessionStorage.setItem('sq_user',JSON.stringify(currentUser));
+  // Update email in members list
+  if(m.email!==currentEmail){m.email=currentEmail;saveMembersLocal();}
+  currentUser={...m};
+  sessionStorage.setItem('sq_user',JSON.stringify(currentUser));
   clearInterval(timerInterval);enterApp();
 }
+
 async function resendOTP(){
   document.querySelectorAll('.otp-box').forEach(b=>b.value='');
   hideMsg('err3');document.getElementById('btn-resend').disabled=true;
-  await sendOTP();if(isDemoMode){showStep(3);startTimer();}
+  await sendOTP();
 }
 function startTimer(){
   let s=60;const el=document.getElementById('timer-text');const rb=document.getElementById('btn-resend');
@@ -528,7 +547,7 @@ function showStep(n){
 }
 
 // ── APP ENTRY ───────────────────────────────
-function enterApp(){
+async function enterApp(){
   document.getElementById('screen-login').classList.remove('active');
   document.getElementById('screen-app').classList.add('active');
   document.getElementById('hdr-name').textContent=currentUser.name;
@@ -537,19 +556,45 @@ function enterApp(){
   if(currentUser.isAdmin){
     document.getElementById('btn-admin-panel').style.display='block';
     document.getElementById('admin-prev-section').style.display='block';
-    ['pb-from','pb-to'].forEach(id=>{
-      document.getElementById(id).innerHTML=MEMBERS.map(m=>`<option value="${m.id}">${m.emoji} ${m.name}</option>`).join('');
-    });
   }
-  if(isDemoMode){
-    expenses=[...demoExp];prevBals=[...demoPrev];
-    document.getElementById('demo-notice').style.display='block';
-    document.getElementById('demo-notice').innerHTML=`<div class="demo-banner"><h4>🚀 Demo Mode</h4><p>Sample data loaded. Connect Supabase for real OTP & cloud sync. Demo login code: <code>123456</code></p></div>`;
-  }
-  updateMonthLabels();renderSquad();initAddForm();
+  // Load all data from Supabase
+  await loadAllData();
+  updateMonthLabels();
+  renderSquad();
+  initAddForm();
   document.getElementById('inp-date').value=new Date().toISOString().split('T')[0];
   refresh();
 }
+
+async function loadAllData(){
+  if(!isDemoMode&&sb){
+    const[e,p,s]=await Promise.all([
+      sb.from('expenses').select('*').order('date',{ascending:false}),
+      sb.from('prev_balances').select('*'),
+      sb.from('settlements').select('*').order('created_at',{ascending:false}),
+    ]);
+    expenses=e.data||[];
+    prevBals=p.data||[];
+    settlements=s.data||[];
+  } else {
+    // Demo data
+    expenses=[
+      {id:1,name:'Fuel',amount:50,paid_by:'khan',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'fuel',month:'2026-03'},
+      {id:2,name:'Fish',amount:80,paid_by:'khan',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'food',month:'2026-03'},
+      {id:3,name:'Kabab',amount:65,paid_by:'kaatuva',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'food',month:'2026-03'},
+      {id:4,name:'Juice',amount:15,paid_by:'kaatuva',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'drinks',month:'2026-03'},
+      {id:5,name:'Workshop',amount:100,paid_by:'niyaz',split_between:['khan','kaatuva','naina','asif','niyaz'],date:'2026-03-07',category:'workshop',month:'2026-03'},
+    ];
+    prevBals=[
+      {id:1,from_member:'kaatuva',to_member:'khan',amount:685,month:'2026-02'},
+      {id:2,from_member:'naina',to_member:'khan',amount:65,month:'2026-02'},
+      {id:3,from_member:'asif',to_member:'khan',amount:256,month:'2026-02'},
+      {id:4,from_member:'niyaz',to_member:'khan',amount:130,month:'2026-02'},
+    ];
+    settlements=[];
+  }
+}
+
 function logout(){
   if(!confirm('Log out?'))return;
   sessionStorage.removeItem('sq_user');currentUser=null;
@@ -558,38 +603,154 @@ function logout(){
   showStep(1);document.querySelectorAll('.member-option').forEach(e=>e.classList.remove('selected'));
   selectedId=null;
 }
-function refresh(){renderExpenses();renderBalances();renderSettlements();renderPrevBals();}
 
-// ── MONTH NAV ───────────────────────────────
+function refresh(){
+  updateMonthLabels();
+  renderExpenses();
+  renderBalances();
+  renderSettlements();
+  renderPrevBals();
+  populatePrevBalDropdowns();
+}
+
+// ── MONTH ────────────────────────────────────
 function changeMonth(d){
-  const[y,m]=viewMonth.split('-').map(Number);const nd=new Date(y,m-1+d,1);
+  const[y,m]=viewMonth.split('-').map(Number);
+  const nd=new Date(y,m-1+d,1);
   viewMonth=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0');
-  updateMonthLabels();refresh();
+  refresh();
 }
 function updateMonthLabels(){
   const[y,m]=viewMonth.split('-').map(Number);
   const lbl=new Date(y,m-1,1).toLocaleString('default',{month:'long',year:'numeric'});
-  ['month-label','month-label-2','month-label-3','admin-month-label'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=lbl;});
+  ['month-label','month-label-2','month-label-3','admin-month-label'].forEach(id=>{
+    const e=document.getElementById(id);if(e)e.textContent=lbl;
+  });
+}
+function getPrevMonth(){
+  const[y,m]=viewMonth.split('-').map(Number);
+  const pd=new Date(y,m-2,1);
+  return pd.getFullYear()+'-'+String(pd.getMonth()+1).padStart(2,'0');
 }
 
-// ── SQUAD ───────────────────────────────────
+// ── SQUAD ─────────────────────────────────────
 function renderSquad(){
   document.getElementById('squad-grid').innerHTML=MEMBERS.map(m=>`
-    <div class="member-card">
+    <div class="member-card" onclick="showPersonDetail('${m.id}')">
       <div class="av" style="background:${m.color}20;border:2px solid ${m.color}50">${m.emoji}</div>
       <div class="mname">${m.name}</div>
       ${m.isAdmin?'<span class="admin-badge">👑 Admin</span>':''}
       <div class="memail">${m.email||'—'}</div>
+      <div style="margin-top:6px;font-size:.7rem;color:var(--accent4)">Tap for details →</div>
     </div>`).join('');
 }
 
-// ── ADD FORM ────────────────────────────────
+// ── PERSON DETAIL MODAL ──────────────────────
+function showPersonDetail(memberId){
+  const m=MEMBERS.find(x=>x.id===memberId);
+  if(!m)return;
+  const allMonths=[...new Set([...expenses.map(e=>e.month),...prevBals.map(b=>b.month)])].sort().reverse();
+  
+  let html=`<div id="person-modal" style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.8);overflow-y:auto;backdrop-filter:blur(4px);">
+  <div style="max-width:480px;margin:20px auto;background:var(--card);border-radius:20px;border:1px solid var(--border);padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:2.5rem">${m.emoji}</div>
+        <div><div style="font-weight:800;font-size:1.1rem;color:${m.color}">${m.name}</div>
+        <div style="font-size:.72rem;color:var(--muted)">${m.email||'No email set'}</div></div>
+      </div>
+      <button onclick="document.getElementById('person-modal').remove()" style="background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:6px 14px;cursor:pointer;font-weight:700;">✕</button>
+    </div>`;
+  
+  // Total net across ALL months
+  const totalNet=calcTotalNetForMember(memberId);
+  html+=`<div style="background:var(--card2);border-radius:14px;padding:14px;margin-bottom:16px;border:1px solid ${totalNet>=0?'rgba(107,203,119,.3)':'rgba(255,107,107,.3)'}">
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px;">OVERALL BALANCE</div>
+    <div style="font-family:'Fredoka One',cursive;font-size:1.8rem;color:${totalNet>=0?'var(--green)':'var(--red)'}">
+      ${totalNet>=0?'+':''}₹${Math.abs(totalNet).toFixed(0)}</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${totalNet>=0?'Gets back from squad':'Owes to squad'}</div>
+  </div>`;
+
+  // Month breakdown
+  html+=`<div style="font-family:'Fredoka One',cursive;font-size:1rem;color:var(--accent2);margin-bottom:10px;">📅 Monthly Breakdown</div>`;
+  
+  const activeMonths=allMonths.length>0?allMonths:[viewMonth];
+  activeMonths.forEach(month=>{
+    const monthExps=expenses.filter(e=>e.month===month);
+    const pm=getPrevMonthOf(month);
+    const monthPrevs=prevBals.filter(b=>b.month===pm);
+    const paid=monthExps.filter(e=>e.paid_by===memberId).reduce((s,e)=>s+e.amount,0);
+    const share=monthExps.reduce((s,e)=>e.split_between.includes(memberId)?s+e.amount/e.split_between.length:s,0);
+    const prevOwed=monthPrevs.reduce((s,b)=>b.from_member===memberId?s-b.amount:b.to_member===memberId?s+b.amount:s,0);
+    const monthSettled=settlements.filter(s=>s.month===month&&(s.from_member===memberId||s.to_member===memberId))
+      .reduce((s,t)=>t.from_member===memberId?s+t.amount:s-t.amount,0);
+    const net=paid-share+prevOwed+monthSettled;
+    if(paid===0&&share===0&&prevOwed===0)return;
+    
+    const[y,mo]=month.split('-').map(Number);
+    const mLabel=new Date(y,mo-1,1).toLocaleString('default',{month:'short',year:'numeric'});
+    html+=`<div style="background:var(--card2);border-radius:12px;padding:12px;margin-bottom:8px;border-left:3px solid ${net>=0?'var(--green)':'var(--red)'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-weight:800;font-size:.85rem;color:var(--accent4)">${mLabel}</span>
+        <span style="font-family:'Fredoka One',cursive;color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${Math.abs(net).toFixed(0)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.72rem;">
+        <div style="color:var(--green)">💰 Paid: ₹${paid.toFixed(0)}</div>
+        <div style="color:var(--red)">📊 Share: ₹${share.toFixed(0)}</div>
+        <div style="color:${prevOwed>=0?'var(--green)':'var(--red)'}">📜 Prev: ${prevOwed>=0?'+':''}₹${Math.abs(prevOwed).toFixed(0)}</div>
+        <div style="color:${monthSettled>=0?'var(--green)':'var(--red)'}">✅ Settled: ${monthSettled>=0?'+':''}₹${Math.abs(monthSettled).toFixed(0)}</div>
+      </div>
+      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">`;
+    
+    // Expense list for this month
+    const myExps=monthExps.filter(e=>e.split_between.includes(memberId)||e.paid_by===memberId);
+    myExps.slice(0,5).forEach(e=>{
+      const myShare=e.split_between.includes(memberId)?e.amount/e.split_between.length:0;
+      const iPaid=e.paid_by===memberId;
+      html+=`<div style="font-size:.68rem;display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)">
+        <span>${CAT_ICONS[e.category]||'📦'} ${e.name}</span>
+        <span>${iPaid?`<span style="color:var(--green)">+₹${e.amount}</span>`:''} ${myShare>0?`<span style="color:var(--red)">-₹${myShare.toFixed(0)}</span>`:''}</span>
+      </div>`;
+    });
+    if(myExps.length>5)html+=`<div style="font-size:.65rem;color:var(--muted);margin-top:4px">+${myExps.length-5} more expenses...</div>`;
+    html+=`</div></div>`;
+  });
+
+  html+=`</div></div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+
+function calcTotalNetForMember(memberId){
+  let total=0;
+  expenses.forEach(e=>{
+    if(e.paid_by===memberId)total+=e.amount;
+    if(e.split_between.includes(memberId))total-=e.amount/e.split_between.length;
+  });
+  prevBals.forEach(b=>{
+    if(b.from_member===memberId)total-=b.amount;
+    if(b.to_member===memberId)total+=b.amount;
+  });
+  settlements.forEach(s=>{
+    if(s.from_member===memberId)total+=s.amount;
+    if(s.to_member===memberId)total-=s.amount;
+  });
+  return total;
+}
+
+function getPrevMonthOf(month){
+  const[y,m]=month.split('-').map(Number);
+  const pd=new Date(y,m-2,1);
+  return pd.getFullYear()+'-'+String(pd.getMonth()+1).padStart(2,'0');
+}
+
+// ── ADD FORM ──────────────────────────────────
 function initAddForm(){
   document.getElementById('inp-paidby').innerHTML=MEMBERS.map(m=>`<option value="${m.id}">${m.emoji} ${m.name}</option>`).join('');
   document.getElementById('inp-paidby').value=currentUser.id;
   document.getElementById('split-group').innerHTML=MEMBERS.map(m=>`
     <div class="cb-item on" data-id="${m.id}" onclick="this.classList.toggle('on')">${m.emoji} ${m.name}</div>`).join('');
 }
+
 async function addExpense(){
   const name=document.getElementById('inp-name').value.trim();
   const amount=parseFloat(document.getElementById('inp-amount').value);
@@ -602,33 +763,40 @@ async function addExpense(){
   const exp={name,amount,paid_by,split_between,date,category,month};
   if(!isDemoMode&&sb){
     const{data,error}=await sb.from('expenses').insert([exp]).select();
-    if(error){alert('Error: '+error.message);return;}expenses.push(data[0]);
-  }else{exp.id=Date.now();demoExp.push(exp);expenses=[...demoExp];}
-  document.getElementById('inp-name').value='';document.getElementById('inp-amount').value='';
+    if(error){alert('Error saving: '+error.message);return;}
+    expenses.push(data[0]);
+  } else {
+    exp.id=Date.now();expenses.push(exp);
+  }
+  document.getElementById('inp-name').value='';
+  document.getElementById('inp-amount').value='';
+  showToast('✅ Expense added!');
   refresh();showPage('home',document.querySelector('.nav-btn'));
 }
 
-// ── EXPENSE LIST ────────────────────────────
+// ── EXPENSE LIST ──────────────────────────────
 function renderExpenses(){
   const el=document.getElementById('expense-list');
   const list=expenses.filter(e=>e.month===viewMonth);
   if(!list.length){el.innerHTML=`<div class="empty"><div class="ei">🗒️</div><p>No expenses this month.<br>Tap ➕ to add!</p></div>`;return;}
-  const byDate={};list.forEach(e=>{(byDate[e.date]=byDate[e.date]||[]).push(e);});
+  const byDate={};
+  list.forEach(e=>{(byDate[e.date]=byDate[e.date]||[]).push(e);});
   el.innerHTML=Object.entries(byDate).sort((a,b)=>b[0].localeCompare(a[0])).map(([date,exps])=>{
     const dl=new Date(date+'T12:00').toLocaleDateString('en-US',{weekday:'short',day:'numeric',month:'short'});
     const dt=exps.reduce((s,e)=>s+e.amount,0);
     return`<div style="margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="font-size:.78rem;font-weight:800;color:var(--accent4)">📅 ${dl}</span>
-        <span style="font-size:.72rem;color:var(--muted)">Total: <span style="color:var(--accent2);font-weight:700">₹${dt}</span></span>
+        <span style="font-size:.72rem;color:var(--muted)">₹${dt}</span>
       </div>${exps.map(e=>expCard(e)).join('')}</div>`;
   }).join('');
 }
+
 function expCard(e){
   const payer=MEMBERS.find(m=>m.id===e.paid_by);
   const snames=e.split_between.map(id=>MEMBERS.find(m=>m.id===id)?.name).filter(Boolean);
   const share=(e.amount/e.split_between.length).toFixed(0);
-  const canDel=currentUser?.isAdmin;
+  const canEdit=currentUser?.isAdmin;
   return`<div class="exp-item-card">
     <div style="font-size:1.5rem;margin-right:10px">${CAT_ICONS[e.category]||'📦'}</div>
     <div style="flex:1">
@@ -639,27 +807,39 @@ function expCard(e){
     <div>
       <div class="exp-amt">₹${e.amount}</div>
       <div class="exp-share">₹${share}/head</div>
-      ${canDel?`<button class="btn-del" onclick="delExp('${e.id}')">🗑️ Del</button>`:''}
+      ${canEdit?`<button class="btn-del" onclick="delExp('${e.id}')">🗑️</button>`:''}
     </div>
   </div>`;
 }
+
 async function delExp(id){
-  if(!currentUser?.isAdmin){alert('⛔ Only Admin can delete!');return;}
+  if(!currentUser?.isAdmin){alert('⛔ Admin only!');return;}
   if(!confirm('Delete this expense?'))return;
   if(!isDemoMode&&sb){
     const{error}=await sb.from('expenses').delete().eq('id',id);
-    if(error){alert('Error: '+error.message);return;}expenses=expenses.filter(e=>String(e.id)!==String(id));
-  }else{demoExp=demoExp.filter(e=>String(e.id)!==String(id));expenses=[...demoExp];}
+    if(error){alert('Error: '+error.message);return;}
+  }
+  expenses=expenses.filter(e=>String(e.id)!==String(id));
   refresh();
 }
 
-// ── CALC ────────────────────────────────────
-function calcNet(exps,prevs){
+// ── CALC ──────────────────────────────────────
+function calcNet(exps,prevs,setts){
   const net={};MEMBERS.forEach(m=>net[m.id]=0);
-  prevs.forEach(b=>{net[b.from_member]-=b.amount;net[b.to_member]+=b.amount;});
-  exps.forEach(e=>{const sh=e.amount/e.split_between.length;net[e.paid_by]+=e.amount;e.split_between.forEach(id=>net[id]-=sh);});
+  prevs.forEach(b=>{if(net[b.from_member]!==undefined)net[b.from_member]-=b.amount;if(net[b.to_member]!==undefined)net[b.to_member]+=b.amount;});
+  exps.forEach(e=>{
+    const sh=e.amount/e.split_between.length;
+    if(net[e.paid_by]!==undefined)net[e.paid_by]+=e.amount;
+    e.split_between.forEach(id=>{if(net[id]!==undefined)net[id]-=sh;});
+  });
+  // Apply settlements — from_member PAID, so their debt reduces (net goes up), to_member received, net goes down
+  (setts||[]).forEach(s=>{
+    if(net[s.from_member]!==undefined)net[s.from_member]+=s.amount;
+    if(net[s.to_member]!==undefined)net[s.to_member]-=s.amount;
+  });
   return net;
 }
+
 function simplify(net){
   const cr=[],dt=[];
   Object.entries(net).forEach(([id,v])=>{if(v>0.01)cr.push({id,amount:v});else if(v<-0.01)dt.push({id,amount:-v});});
@@ -673,44 +853,53 @@ function simplify(net){
   }
   return txns;
 }
-function getPrevMonth(){
-  const[y,m]=viewMonth.split('-').map(Number);const pd=new Date(y,m-2,1);
-  return pd.getFullYear()+'-'+String(pd.getMonth()+1).padStart(2,'0');
-}
 
-// ── BALANCES ────────────────────────────────
+// ── BALANCES PAGE ─────────────────────────────
 function renderBalances(){
   const exps=expenses.filter(e=>e.month===viewMonth);
-  const pm=getPrevMonth();const prevs=prevBals.filter(b=>b.month===pm);
-  const net=calcNet(exps,prevs);
+  const pm=getPrevMonth();
+  const prevs=prevBals.filter(b=>b.month===pm);
+  const setts=settlements.filter(s=>s.month===viewMonth);
+  const net=calcNet(exps,prevs,setts);
+
   document.getElementById('balance-tbl').innerHTML=`
-    <thead><tr><th>Member</th><th>Paid</th><th>Share</th><th>Prev</th><th>NET</th></tr></thead>
+    <thead><tr><th>Member</th><th>Paid</th><th>Share</th><th>Prev</th><th>Settled</th><th>NET</th></tr></thead>
     <tbody>${MEMBERS.map(m=>{
       const paid=exps.filter(e=>e.paid_by===m.id).reduce((s,e)=>s+e.amount,0);
       const share=exps.reduce((s,e)=>e.split_between.includes(m.id)?s+e.amount/e.split_between.length:s,0);
       const prev=prevs.reduce((s,b)=>b.from_member===m.id?s-b.amount:b.to_member===m.id?s+b.amount:s,0);
+      const settled=setts.reduce((s,t)=>t.from_member===m.id?s+t.amount:t.to_member===m.id?s-t.amount:s,0);
       const n=net[m.id];
-      return`<tr><td><span style="color:${m.color};font-weight:800">${m.emoji} ${m.name}</span></td>
-        <td class="tag-g">₹${paid.toFixed(0)}</td><td class="tag-r">₹${share.toFixed(0)}</td>
+      return`<tr>
+        <td><span style="color:${m.color};font-weight:800">${m.emoji} ${m.name}</span></td>
+        <td class="tag-g">₹${paid.toFixed(0)}</td>
+        <td class="tag-r">₹${share.toFixed(0)}</td>
         <td class="${prev>=0?'tag-g':'tag-r'}">${prev>=0?'+':''}₹${Math.abs(prev).toFixed(0)}</td>
-        <td class="${n>=0?'tag-g':'tag-r'}" style="font-weight:800;font-size:.88rem">${n>=0?'+':''}₹${n.toFixed(0)}</td></tr>`;
+        <td class="${settled>=0?'tag-g':'tag-r'}">${settled!==0?(settled>=0?'+':'')+'₹'+Math.abs(settled).toFixed(0):'—'}</td>
+        <td class="${n>=0?'tag-g':'tag-r'}" style="font-weight:800">${n>=0?'+':''}₹${Math.abs(n).toFixed(0)}</td>
+      </tr>`;
     }).join('')}</tbody>`;
+
   document.getElementById('net-list').innerHTML=MEMBERS.map(m=>{
     const v=net[m.id];
-    return`<div class="balance-row ${v>=0?'clear':'owes'}">
+    return`<div class="balance-row ${v>=0?'clear':'owes'}" onclick="showPersonDetail('${m.id}')" style="cursor:pointer">
       <div class="b-left"><div style="font-size:1.3rem">${m.emoji}</div>
       <div><div class="b-name" style="color:${m.color}">${m.name}</div>
-      <div class="b-sub">${v>=0?'✅ Gets back':'🔴 Owes'}</div></div></div>
+      <div class="b-sub">${v>=0?'✅ Gets back':'🔴 Owes'} • tap for breakdown</div></div></div>
       <div class="b-amt ${v>=0?'pos':'neg'}">${v>=0?'+':''}₹${Math.abs(v).toFixed(0)}</div>
     </div>`;
   }).join('');
 }
+
+// ── SETTLE PAGE ───────────────────────────────
 function renderSettlements(){
   const exps=expenses.filter(e=>e.month===viewMonth);
   const prevs=prevBals.filter(b=>b.month===getPrevMonth());
-  const net=calcNet(exps,prevs);const txns=simplify(net);
+  const setts=settlements.filter(s=>s.month===viewMonth);
+  const net=calcNet(exps,prevs,setts);
+  const txns=simplify(net);
   const el=document.getElementById('settle-list');
-  if(!txns.length){el.innerHTML=`<div class="empty"><div class="ei">🎉</div><p>All squared up!<br>No debts this month.</p></div>`;return;}
+  if(!txns.length){el.innerHTML=`<div class="empty"><div class="ei">🎉</div><p>All squared up!</p></div>`;return;}
   el.innerHTML=txns.map(t=>{
     const f=MEMBERS.find(m=>m.id===t.from),to=MEMBERS.find(m=>m.id===t.to);
     return`<div class="settle-card">
@@ -718,9 +907,69 @@ function renderSettlements(){
       <div class="settle-to">needs to pay</div>
       <div class="settle-from" style="color:${to.color}">${to.emoji} ${to.name}</div></div>
       <div style="font-size:1.5rem;color:var(--muted)">→</div>
-      <div class="settle-amt">₹${t.amount.toFixed(0)}</div></div>`;
+      <div class="settle-amt">₹${t.amount.toFixed(0)}</div>
+    </div>`;
+  }).join('');
+
+  // Settlements history
+  const el2=document.getElementById('settlements-history');
+  const monthSetts=settlements.filter(s=>s.month===viewMonth);
+  if(!monthSetts.length){el2.innerHTML=`<div style="color:var(--muted);font-size:.82rem;text-align:center;padding:12px">No settlements recorded this month</div>`;return;}
+  el2.innerHTML=monthSetts.map(s=>{
+    const f=MEMBERS.find(m=>m.id===s.from_member),t=MEMBERS.find(m=>m.id===s.to_member);
+    return`<div class="balance-row owes" style="border-color:var(--green)">
+      <div class="b-left"><div style="font-size:1.2rem">✅</div>
+      <div><div class="b-name">${f?.emoji} ${f?.name} paid ${t?.emoji} ${t?.name}</div>
+      <div class="b-sub">${new Date(s.created_at||Date.now()).toLocaleDateString()}</div></div></div>
+      <div>
+        <div class="b-amt pos">₹${s.amount}</div>
+        ${currentUser?.isAdmin?`<button class="btn-del" onclick="delSettlement('${s.id}')">🗑️</button>`:''}
+      </div>
+    </div>`;
   }).join('');
 }
+
+async function recordSettlement(){
+  const from=document.getElementById('settle-from').value;
+  const to=document.getElementById('settle-to').value;
+  const amt=parseFloat(document.getElementById('settle-amount').value);
+  if(!from||!to||!amt||from===to){alert('⚠️ Fill all fields correctly');return;}
+  const entry={from_member:from,to_member:to,amount:amt,month:viewMonth};
+  if(!isDemoMode&&sb){
+    const{data,error}=await sb.from('settlements').insert([entry]).select();
+    if(error){alert('Error: '+error.message);return;}
+    settlements.push(data[0]);
+  } else {
+    entry.id=Date.now();entry.created_at=new Date().toISOString();settlements.push(entry);
+  }
+  document.getElementById('settle-amount').value='';
+  showToast(`✅ Settlement recorded! ₹${amt} from ${MEMBERS.find(m=>m.id===from)?.name} to ${MEMBERS.find(m=>m.id===to)?.name}`);
+  refresh();
+}
+
+async function delSettlement(id){
+  if(!currentUser?.isAdmin){alert('⛔ Admin only!');return;}
+  if(!confirm('Delete this settlement?'))return;
+  if(!isDemoMode&&sb){
+    const{error}=await sb.from('settlements').delete().eq('id',id);
+    if(error){alert('Error: '+error.message);return;}
+  }
+  settlements=settlements.filter(s=>String(s.id)!==String(id));
+  refresh();
+}
+
+// ── PREV BALANCES ─────────────────────────────
+function populatePrevBalDropdowns(){
+  ['pb-from','pb-to'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.innerHTML=MEMBERS.map(m=>`<option value="${m.id}">${m.emoji} ${m.name}</option>`).join('');
+  });
+  ['settle-from','settle-to'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.innerHTML=MEMBERS.map(m=>`<option value="${m.id}">${m.emoji} ${m.name}</option>`).join('');
+  });
+}
+
 function renderPrevBals(){
   const el=document.getElementById('prev-list');
   if(!prevBals.length){el.innerHTML=`<div style="color:var(--muted);font-size:.82rem;text-align:center;padding:16px">No previous balances</div>`;return;}
@@ -734,24 +983,31 @@ function renderPrevBals(){
       </div></div>`;
   }).join('');
 }
+
 async function addPrevBal(){
   const from=document.getElementById('pb-from').value,to=document.getElementById('pb-to').value;
   const amt=parseFloat(document.getElementById('pb-amount').value);
   if(!from||!to||!amt||from===to){alert('⚠️ Fill all fields correctly');return;}
-  const entry={from_member:from,to_member:to,amount:amt,month:getPrevMonth()};
+  const pm=getPrevMonth();
+  const entry={from_member:from,to_member:to,amount:amt,month:pm};
   if(!isDemoMode&&sb){
     const{data,error}=await sb.from('prev_balances').insert([entry]).select();
-    if(error){alert('Error: '+error.message);return;}prevBals.push(data[0]);
-  }else{entry.id=Date.now();demoPrev.push(entry);prevBals=[...demoPrev];}
-  document.getElementById('pb-amount').value='';refresh();
+    if(error){alert('Error: '+error.message);return;}
+    prevBals.push(data[0]);
+  } else {entry.id=Date.now();prevBals.push(entry);}
+  document.getElementById('pb-amount').value='';
+  showToast('✅ Balance added!');
+  refresh();
 }
+
 async function delPrev(id){
   if(!currentUser?.isAdmin){alert('⛔ Admin only!');return;}
   if(!confirm('Delete this balance?'))return;
   if(!isDemoMode&&sb){
     const{error}=await sb.from('prev_balances').delete().eq('id',id);
-    if(error){alert('Error: '+error.message);return;}prevBals=prevBals.filter(b=>String(b.id)!==String(id));
-  }else{demoPrev=demoPrev.filter(b=>String(b.id)!==String(id));prevBals=[...demoPrev];}
+    if(error){alert('Error: '+error.message);return;}
+  }
+  prevBals=prevBals.filter(b=>String(b.id)!==String(id));
   refresh();
 }
 
@@ -766,111 +1022,104 @@ function openAdmin(){
 }
 function closeAdmin(){
   document.getElementById('admin-overlay').classList.remove('open');
-  refresh();renderSquad();
+  refresh();renderSquad();initAddForm();
 }
 function adminTab(name,btn){
   document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('atab-'+name).classList.add('active');
+  btn.classList.add('active');document.getElementById('atab-'+name).classList.add('active');
 }
 
-// ── ADMIN: MEMBERS ─────────────────────────
+// ADMIN: MEMBERS
 function renderAdminMembers(){
   const el=document.getElementById('member-edit-list');
-  el.innerHTML=MEMBERS.map((m,i)=>`
+  el.innerHTML=`
+  <div class="info-box" style="margin-bottom:12px">✏️ Edit members or add new ones. Changes save immediately to all users.</div>
+  ${MEMBERS.map((m,i)=>`
     <div class="member-edit-card">
       <div class="member-edit-top">
         <div class="member-big-av" style="background:${m.color}30;border:2px solid ${m.color}60">${m.emoji}</div>
-        <div>
-          <div class="member-edit-name">${m.name}</div>
-          <div class="member-edit-role">${m.isAdmin?'👑 Admin':'👤 Member'} &nbsp;•&nbsp; ID: ${m.id}</div>
-        </div>
+        <div><div class="member-edit-name">${m.name}</div>
+        <div class="member-edit-role">${m.isAdmin?'👑 Admin':'👤 Member'}</div></div>
       </div>
       <div class="edit-row">
-        <div>
-          <div class="edit-label">Display Name</div>
-          <input class="edit-inp" id="em-name-${i}" value="${m.name}" placeholder="Name" />
-        </div>
-        <div>
-          <div class="edit-label">Email Address</div>
-          <input class="edit-inp" id="em-email-${i}" type="email" value="${m.email||''}" placeholder="email@gmail.com" />
-        </div>
+        <div><div class="edit-label">Name</div><input class="edit-inp" id="em-name-${i}" value="${m.name}" /></div>
+        <div><div class="edit-label">Email</div><input class="edit-inp" id="em-email-${i}" type="email" value="${m.email||''}" placeholder="email@gmail.com" /></div>
       </div>
       <div class="edit-row">
-        <div>
-          <div class="edit-label">Emoji Avatar</div>
-          <select class="edit-inp" id="em-emoji-${i}">
-            ${EMOJIS.map(e=>`<option value="${e}" ${e===m.emoji?'selected':''}>${e} ${e}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <div class="edit-label">Color</div>
-          <select class="edit-inp" id="em-color-${i}">
-            ${COLORS.map(c=>`<option value="${c}" ${c===m.color?'selected':''}>${c}</option>`).join('')}
-          </select>
-        </div>
+        <div><div class="edit-label">Emoji</div>
+          <select class="edit-inp" id="em-emoji-${i}">${EMOJIS.map(e=>`<option value="${e}" ${e===m.emoji?'selected':''}>${e}</option>`).join('')}</select></div>
+        <div><div class="edit-label">Color</div>
+          <select class="edit-inp" id="em-color-${i}">${COLORS.map(c=>`<option value="${c}" ${c===m.color?'selected':''}>${c}</option>`).join('')}</select></div>
       </div>
-      <button class="btn-save-member" onclick="saveMember(${i})">💾 Save Changes</button>
-    </div>`).join('');
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button class="btn-save-member" onclick="saveMember(${i})" style="flex:1">💾 Save</button>
+        ${MEMBERS.length>2&&!m.isAdmin?`<button onclick="removeMember(${i})" style="padding:8px 14px;border-radius:10px;border:none;background:rgba(255,107,107,.15);color:var(--red);font-weight:800;cursor:pointer;border:1px solid rgba(255,107,107,.3)">🗑️</button>`:''}
+      </div>
+    </div>`).join('')}
+  <button onclick="addNewMember()" style="width:100%;padding:14px;border-radius:14px;border:2px dashed var(--border);background:transparent;color:var(--accent2);font-family:'Fredoka One',cursive;font-size:1rem;cursor:pointer;margin-top:8px">
+    ➕ Add New Member
+  </button>`;
 }
 
-function saveMember(i){
+async function saveMember(i){
   const name=document.getElementById(`em-name-${i}`).value.trim();
   const email=document.getElementById(`em-email-${i}`).value.trim();
   const emoji=document.getElementById(`em-emoji-${i}`).value;
   const color=document.getElementById(`em-color-${i}`).value;
   if(!name){alert('⚠️ Name cannot be empty!');return;}
   MEMBERS[i]={...MEMBERS[i],name,email,emoji,color};
-  saveMembersToStorage();
-  // Update current user if it's them
+  await saveMembers();
   if(currentUser&&currentUser.id===MEMBERS[i].id){
     currentUser={...MEMBERS[i]};
     sessionStorage.setItem('sq_user',JSON.stringify(currentUser));
     document.getElementById('hdr-name').textContent=currentUser.name;
     document.getElementById('hdr-av').textContent=currentUser.emoji;
   }
-  renderAdminMembers();
-  showToast(`✅ ${name} updated!`);
+  renderAdminMembers();showToast(`✅ ${name} saved!`);
 }
 
-// ── ADMIN: EXPENSES ────────────────────────
+async function addNewMember(){
+  const newId='member_'+Date.now();
+  MEMBERS.push({id:newId,name:'New Member',email:'',emoji:'😎',color:'#b06aff',isAdmin:false});
+  await saveMembers();
+  renderAdminMembers();showToast('✅ New member added — edit their details above');
+}
+
+async function removeMember(i){
+  if(!confirm(`Remove ${MEMBERS[i].name} from the squad?`))return;
+  MEMBERS.splice(i,1);
+  await saveMembers();
+  renderAdminMembers();showToast('✅ Member removed');
+}
+
+// ADMIN: EXPENSES
 function renderAdminExpenses(){
   const el=document.getElementById('admin-expense-list');
   const list=expenses.filter(e=>e.month===viewMonth);
-  if(!list.length){el.innerHTML=`<div style="text-align:center;color:var(--muted);padding:30px;font-size:.85rem">No expenses this month</div>`;return;}
+  if(!list.length){el.innerHTML=`<div style="text-align:center;color:var(--muted);padding:30px">No expenses this month</div>`;return;}
   el.innerHTML=list.map(e=>{
     const splitOpts=MEMBERS.map(m=>`
       <label style="display:flex;align-items:center;gap:6px;font-size:.75rem;cursor:pointer;">
         <input type="checkbox" value="${m.id}" ${e.split_between.includes(m.id)?'checked':''}
-          onchange="toggleExpSplit(this,'${e.id}')" style="accent-color:var(--accent2);" />
-        ${m.emoji} ${m.name}
-      </label>`).join('');
+          style="accent-color:var(--accent2);" onchange="updateExpSplit(this,'${e.id}')" />
+        ${m.emoji} ${m.name}</label>`).join('');
     return`<div class="exp-edit-card">
-      <div class="exp-edit-title">${CAT_ICONS[e.category]||'📦'} Expense #${e.id}</div>
+      <div class="exp-edit-title">${CAT_ICONS[e.category]||'📦'} ${e.name} — ₹${e.amount}</div>
       <div class="exp-edit-grid">
-        <div><div class="edit-label">Name</div>
-          <input class="edit-inp" id="ee-name-${e.id}" value="${e.name}" /></div>
-        <div><div class="edit-label">Amount ₹</div>
-          <input class="edit-inp" type="number" id="ee-amt-${e.id}" value="${e.amount}" /></div>
+        <div><div class="edit-label">Name</div><input class="edit-inp" id="ee-name-${e.id}" value="${e.name}" /></div>
+        <div><div class="edit-label">Amount ₹</div><input class="edit-inp" type="number" id="ee-amt-${e.id}" value="${e.amount}" /></div>
         <div><div class="edit-label">Paid By</div>
-          <select class="edit-inp" id="ee-paid-${e.id}">
-            ${MEMBERS.map(m=>`<option value="${m.id}" ${m.id===e.paid_by?'selected':''}>${m.emoji} ${m.name}</option>`).join('')}
-          </select></div>
-        <div><div class="edit-label">Date</div>
-          <input class="edit-inp" type="date" id="ee-date-${e.id}" value="${e.date}" /></div>
+          <select class="edit-inp" id="ee-paid-${e.id}">${MEMBERS.map(m=>`<option value="${m.id}" ${m.id===e.paid_by?'selected':''}>${m.emoji} ${m.name}</option>`).join('')}</select></div>
+        <div><div class="edit-label">Date</div><input class="edit-inp" type="date" id="ee-date-${e.id}" value="${e.date}" /></div>
       </div>
       <div class="exp-edit-full"><div class="edit-label">Category</div>
-        <select class="edit-inp" id="ee-cat-${e.id}">
-          ${Object.entries(CAT_ICONS).map(([k,v])=>`<option value="${k}" ${k===e.category?'selected':''}>${v} ${k}</option>`).join('')}
-        </select></div>
-      <div class="exp-edit-full">
-        <div class="edit-label">Split Between</div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;padding:8px 0;" id="ee-split-${e.id}">${splitOpts}</div>
-      </div>
+        <select class="edit-inp" id="ee-cat-${e.id}">${Object.entries(CAT_ICONS).map(([k,v])=>`<option value="${k}" ${k===e.category?'selected':''}>${v} ${k}</option>`).join('')}</select></div>
+      <div class="exp-edit-full"><div class="edit-label">Split Between</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;padding:6px 0;" id="ee-split-${e.id}">${splitOpts}</div></div>
       <div style="display:flex;gap:8px;margin-top:4px;">
         <button class="btn-save-exp" onclick="saveExpense('${e.id}')">💾 Save</button>
-        <button class="btn-del-exp" onclick="delExp('${e.id}');renderAdminExpenses();">🗑️ Delete</button>
+        <button class="btn-del-exp" onclick="delExp('${e.id}');renderAdminExpenses()">🗑️ Delete</button>
       </div>
     </div>`;
   }).join('');
@@ -889,43 +1138,34 @@ async function saveExpense(id){
   if(!isDemoMode&&sb){
     const{error}=await sb.from('expenses').update(updated).eq('id',id);
     if(error){alert('Error: '+error.message);return;}
-    const idx=expenses.findIndex(e=>String(e.id)===String(id));
-    if(idx>-1)expenses[idx]={...expenses[idx],...updated};
-  }else{
-    const idx=demoExp.findIndex(e=>String(e.id)===String(id));
-    if(idx>-1)demoExp[idx]={...demoExp[idx],...updated};
-    expenses=[...demoExp];
   }
-  showToast('✅ Expense updated!');
-  renderAdminExpenses();
+  const idx=expenses.findIndex(e=>String(e.id)===String(id));
+  if(idx>-1)expenses[idx]={...expenses[idx],...updated};
+  showToast('✅ Expense updated!');renderAdminExpenses();refresh();
 }
 
-// ── ADMIN: BALANCES ────────────────────────
+// ADMIN: BALANCES
 function renderAdminBalances(){
   const el=document.getElementById('admin-balance-list');
   ['apb-from','apb-to'].forEach(id=>{
     document.getElementById(id).innerHTML=MEMBERS.map(m=>`<option value="${m.id}">${m.emoji} ${m.name}</option>`).join('');
   });
-  if(!prevBals.length){el.innerHTML=`<div style="text-align:center;color:var(--muted);padding:20px;font-size:.82rem">No previous balances yet</div>`;return;}
+  if(!prevBals.length){el.innerHTML=`<div style="text-align:center;color:var(--muted);padding:20px">No previous balances yet</div>`;return;}
   el.innerHTML=prevBals.map(b=>{
     const f=MEMBERS.find(m=>m.id===b.from_member),t=MEMBERS.find(m=>m.id===b.to_member);
     return`<div class="exp-edit-card">
       <div class="exp-edit-title">${f?.emoji} ${f?.name} → ${t?.emoji} ${t?.name}</div>
       <div class="exp-edit-grid">
         <div><div class="edit-label">From</div>
-          <select class="edit-inp" id="ab-from-${b.id}">
-            ${MEMBERS.map(m=>`<option value="${m.id}" ${m.id===b.from_member?'selected':''}>${m.emoji} ${m.name}</option>`).join('')}
-          </select></div>
+          <select class="edit-inp" id="ab-from-${b.id}">${MEMBERS.map(m=>`<option value="${m.id}" ${m.id===b.from_member?'selected':''}>${m.emoji} ${m.name}</option>`).join('')}</select></div>
         <div><div class="edit-label">To</div>
-          <select class="edit-inp" id="ab-to-${b.id}">
-            ${MEMBERS.map(m=>`<option value="${m.id}" ${m.id===b.to_member?'selected':''}>${m.emoji} ${m.name}</option>`).join('')}
-          </select></div>
+          <select class="edit-inp" id="ab-to-${b.id}">${MEMBERS.map(m=>`<option value="${m.id}" ${m.id===b.to_member?'selected':''}>${m.emoji} ${m.name}</option>`).join('')}</select></div>
       </div>
       <div style="margin-bottom:8px;"><div class="edit-label">Amount ₹</div>
         <input class="edit-inp" type="number" id="ab-amt-${b.id}" value="${b.amount}" style="width:100%;" /></div>
       <div style="display:flex;gap:8px;">
         <button class="btn-save-exp" onclick="savePrevBal('${b.id}')">💾 Save</button>
-        <button class="btn-del-exp" onclick="delPrev('${b.id}');renderAdminBalances();">🗑️ Delete</button>
+        <button class="btn-del-exp" onclick="delPrev('${b.id}');renderAdminBalances()">🗑️ Delete</button>
       </div>
     </div>`;
   }).join('');
@@ -940,14 +1180,10 @@ async function savePrevBal(id){
   if(!isDemoMode&&sb){
     const{error}=await sb.from('prev_balances').update(updated).eq('id',id);
     if(error){alert('Error: '+error.message);return;}
-    const idx=prevBals.findIndex(b=>String(b.id)===String(id));
-    if(idx>-1)prevBals[idx]={...prevBals[idx],...updated};
-  }else{
-    const idx=demoPrev.findIndex(b=>String(b.id)===String(id));
-    if(idx>-1)demoPrev[idx]={...demoPrev[idx],...updated};
-    prevBals=[...demoPrev];
   }
-  showToast('✅ Balance updated!');renderAdminBalances();
+  const idx=prevBals.findIndex(b=>String(b.id)===String(id));
+  if(idx>-1)prevBals[idx]={...prevBals[idx],...updated};
+  showToast('✅ Balance updated!');renderAdminBalances();refresh();
 }
 
 async function adminAddPrevBal(){
@@ -957,32 +1193,33 @@ async function adminAddPrevBal(){
   const entry={from_member:from,to_member:to,amount:amt,month:getPrevMonth()};
   if(!isDemoMode&&sb){
     const{data,error}=await sb.from('prev_balances').insert([entry]).select();
-    if(error){alert('Error: '+error.message);return;}prevBals.push(data[0]);
-  }else{entry.id=Date.now();demoPrev.push(entry);prevBals=[...demoPrev];}
+    if(error){alert('Error: '+error.message);return;}
+    prevBals.push(data[0]);
+  } else {entry.id=Date.now();prevBals.push(entry);}
   document.getElementById('apb-amount').value='';
-  renderAdminBalances();showToast('✅ Balance added!');
+  renderAdminBalances();showToast('✅ Balance added!');refresh();
 }
 
-// ── TOAST ───────────────────────────────────
+// ── TOAST ─────────────────────────────────────
 function showToast(msg){
   const t=document.createElement('div');
-  t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#6bcb77;color:#0b1a0e;padding:10px 20px;border-radius:12px;font-weight:800;font-size:.88rem;z-index:999;animation:slideUp .3s ease;';
+  t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#6bcb77;color:#0b1a0e;padding:10px 20px;border-radius:12px;font-weight:800;font-size:.88rem;z-index:999;animation:slideUp .3s ease;white-space:nowrap;';
   t.textContent=msg;document.body.appendChild(t);
-  setTimeout(()=>t.remove(),2500);
+  setTimeout(()=>t.remove(),2800);
 }
 
-// ── NAV ──────────────────────────────────────
+// ── NAV ───────────────────────────────────────
 function showPage(name,navEl){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  navEl.classList.add('active');
+  if(navEl)navEl.classList.add('active');
 }
 
-// ── HELPERS ──────────────────────────────────
+// ── HELPERS ───────────────────────────────────
 function showErr(id,msg){const e=document.getElementById(id);e.textContent=msg;e.style.display='block';}
 function showSucc(id,msg){const e=document.getElementById(id);e.textContent=msg;e.style.display='block';}
-function hideMsg(id){document.getElementById(id).style.display='none';}
+function hideMsg(id){const e=document.getElementById(id);if(e)e.style.display='none';}
 </script>
 </body>
 </html>
