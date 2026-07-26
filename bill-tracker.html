@@ -261,11 +261,11 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
       <div class="card">
         <div class="fg">
           <label>Who do you owe</label>
-          <select id="pe-payee"></select>
+          <select id="pe-payee" onchange="peSelectionChanged()"></select>
         </div>
-        <div class="fg">
-          <label>Or add someone new</label>
-          <input type="text" id="pe-new-payee" placeholder="e.g. Landlord, Sara, Electricity Co.">
+        <div class="fg" id="pe-new-wrap" style="display:none;">
+          <label>Their name</label>
+          <input type="text" id="pe-new-payee" placeholder="e.g. Landlord, Electricity Co.">
         </div>
         <div class="form-row">
           <div class="fg">
@@ -289,7 +289,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
           <input type="text" id="pe-note" placeholder="What's this for?">
         </div>
         <button class="btn-add" onclick="addPayeeEntry()">Save Entry</button>
-        <p style="text-align:center;font-size:.68rem;color:var(--muted);margin-top:10px;">This is separate from what you owe the admin — it's your own private ledger of people you personally owe.</p>
+        <p style="text-align:center;font-size:.68rem;color:var(--muted);margin-top:10px;">Picked someone from this system? They'll see this on their own "🔁 Owed to me" tab. Typed a new name instead? Only you can see it.</p>
       </div>
     </div>
   </div>
@@ -331,6 +331,9 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 
     <div class="section-title" style="font-size:1.1rem;margin-top:22px;">🤝 People you owe</div>
     <div id="payee-balance-list"></div>
+
+    <div class="section-title" style="font-size:1.1rem;margin-top:22px;">🔁 Owed to me</div>
+    <div id="owed-to-me-list"></div>
   </div>
 
   <div class="bottom-nav">
@@ -454,7 +457,7 @@ async function sendOTP(){
   currentEmail = email.toLowerCase();
   const btn = document.getElementById('btn-send-otp');
   btn.disabled = true; btn.textContent = 'Sending…';
-  const { error } = await sb.auth.signInWithOtp({ email: currentEmail, options:{ shouldCreateUser:true } });
+  const { error } = await sb.auth.signInWithOtp({ email: currentEmail, options:{ shouldCreateUser:true, emailRedirectTo: window.location.origin+window.location.pathname } });
   btn.disabled = false; btn.textContent = 'Send Code →';
   if(error){ showErr('login-error', error.message); return; }
   document.getElementById('step-email').classList.remove('active');
@@ -548,7 +551,9 @@ async function enterApp(){
   document.getElementById('header-sub').textContent = managing.group_type==='squad_split' ? 'Squad member · private tracker' : 'Your private dashboard';
   if(managing.group_type==='squad_split') document.getElementById('link-to-squad').style.display='inline-block';
   if(me.is_admin) document.getElementById('btn-open-admin').style.display='inline-block';
+  await loadSystemUsersDirectory();
   await loadMyData();
+  await loadOwedToMe();
   renderHome();
 }
 
@@ -616,7 +621,7 @@ function renderHome(){
 async function emailMyReport(){
   const btn=document.getElementById('btn-email-report');
   btn.disabled=true; btn.textContent='Sending…';
-  const { data, error } = await sb.functions.invoke('send-report', { body:{ type:'bill', month: viewMonth } });
+  const { data, error } = await sb.functions.invoke('send-report', { body:{ type:'combined', month: viewMonth } });
   btn.disabled=false; btn.textContent="📧 Email me this month's report";
   if(error){ toast('Could not send report — check SETUP.md'); return; }
   toast('Report on its way to your inbox 📧');
@@ -701,41 +706,79 @@ async function recordSettlement(){
 }
 
 // ── ADD PAGE SUB-TABS ─────────────────────────
-function switchAddTab(name){
+async function switchAddTab(name){
   document.getElementById('atab-spend').classList.toggle('active', name==='spend');
   document.getElementById('atab-payee').classList.toggle('active', name==='payee');
   document.getElementById('addtab-spend').classList.toggle('active', name==='spend');
   document.getElementById('addtab-payee').classList.toggle('active', name==='payee');
-  if(name==='payee') fillPayeeSelect();
+  if(name==='payee'){ if(!allSystemUsers.length) await loadSystemUsersDirectory(); fillPayeeSelect(); }
 }
 
 // ── PAYEE LEDGER (who I owe — separate from what I owe the admin) ──
+// The directory of everyone registered, so any user (not just admin) can
+// pick a real person instead of typing a name. Loaded once, for everyone.
+let allSystemUsers = [];
+async function loadSystemUsersDirectory(){
+  const { data } = await sb.from('app_users').select('email,name,emoji').order('name');
+  allSystemUsers = (data||[]).filter(u=>u.email.toLowerCase()!==managing.email.toLowerCase());
+}
 function fillPayeeSelect(){
   const sel=document.getElementById('pe-payee');
-  sel.innerHTML = '<option value="">— choose or type a new one below —</option>' +
-    myPayees.map(p=>`<option value="${p.id}">${escapeHtml(p.payee_name)}</option>`).join('');
+  let html = '<option value="">— choose —</option>';
+  if(myPayees.length){
+    html += `<optgroup label="Your existing payees">` +
+      myPayees.map(p=>`<option value="${p.id}">${p.linked_user_email?'🔁 ':''}${escapeHtml(p.payee_name)}</option>`).join('') +
+      `</optgroup>`;
+  }
+  const notYetAdded = allSystemUsers.filter(u=>!myPayees.some(p=>(p.linked_user_email||'').toLowerCase()===u.email.toLowerCase()));
+  if(notYetAdded.length){
+    html += `<optgroup label="People in this system">` +
+      notYetAdded.map(u=>`<option value="user:${u.email}">${u.emoji||'😎'} ${escapeHtml(u.name)}</option>`).join('') +
+      `</optgroup>`;
+  }
+  html += `<option value="new">➕ Someone new (not in this system)</option>`;
+  sel.innerHTML = html;
+  document.getElementById('pe-new-wrap').style.display='none';
+}
+function peSelectionChanged(){
+  const v = document.getElementById('pe-payee').value;
+  document.getElementById('pe-new-wrap').style.display = (v==='new') ? 'block' : 'none';
 }
 async function addPayeeEntry(){
-  let payeeId = document.getElementById('pe-payee').value;
+  const selection = document.getElementById('pe-payee').value;
   const newName = document.getElementById('pe-new-payee').value.trim();
   const amount = parseFloat(document.getElementById('pe-amount').value);
   const date = document.getElementById('pe-date').value;
   const entry_type = document.getElementById('pe-type').value;
   const note = document.getElementById('pe-note').value.trim();
   if(!amount||amount<=0||!date){ toast('Fill in amount and date'); return; }
-  if(!payeeId && !newName){ toast('Pick or add a payee'); return; }
-  if(!payeeId){
+  if(!selection){ toast('Pick who you owe'); return; }
+  if(selection==='new' && !newName){ toast('Type their name'); return; }
+
+  let payeeId;
+  if(selection==='new'){
     const color=CARD_COLORS[myPayees.length % CARD_COLORS.length];
     const { data, error } = await sb.from('bill_payees').insert({ user_email:managing.email, payee_name:newName, color }).select().maybeSingle();
     if(error||!data){ toast('Could not add payee'); return; }
     payeeId = data.id;
+  } else if(selection.startsWith('user:')){
+    const email = selection.slice(5);
+    const su = allSystemUsers.find(u=>u.email===email);
+    const color=CARD_COLORS[myPayees.length % CARD_COLORS.length];
+    const { data, error } = await sb.from('bill_payees').insert({ user_email:managing.email, payee_name:su?su.name:email, color, linked_user_email: email.toLowerCase() }).select().maybeSingle();
+    if(error||!data){ toast('Could not add payee'); return; }
+    payeeId = data.id;
+  } else {
+    payeeId = selection;
   }
+
   const month = date.slice(0,7);
   const { error } = await sb.from('bill_payee_entries').insert({ user_email:managing.email, payee_id:payeeId, amount, entry_type, note, date, month });
   if(error){ toast('Could not save entry'); return; }
   document.getElementById('pe-new-payee').value=''; document.getElementById('pe-amount').value=''; document.getElementById('pe-note').value='';
   toast('Saved ✓');
   await loadMyData();
+  await loadOwedToMe();
   switchPage('owed');
 }
 function renderPayeeBalances(){
@@ -748,9 +791,35 @@ function renderPayeeBalances(){
     const paid = entries.filter(e=>e.entry_type==='paid').reduce((a,x)=>a+Number(x.amount),0);
     const bal = owe-paid;
     return `<div class="owed-row" style="border-color:${p.color};">
-      <div class="b-left"><div class="b-name">${escapeHtml(p.payee_name)}</div><div class="b-sub">${entries.length} entr${entries.length===1?'y':'ies'}</div></div>
+      <div class="b-left"><div class="b-name">${p.linked_user_email?'🔁 ':''}${escapeHtml(p.payee_name)}</div><div class="b-sub">${entries.length} entr${entries.length===1?'y':'ies'}</div></div>
       <div class="b-amt ${bal>0?'neg':'pos'}">${dhs(Math.max(bal,0))}</div>
     </div>`;
+  }).join('');
+}
+
+// ── REVERSE VIEW: other people who logged ME as their payee ──
+let owedToMeRows = [];
+async function loadOwedToMe(){
+  const { data: linkedPayees } = await sb.from('bill_payees').select('*').ilike('linked_user_email', managing.email);
+  if(!linkedPayees || !linkedPayees.length){ owedToMeRows = []; renderOwedToMe(); return; }
+  const ids = linkedPayees.map(p=>p.id);
+  const { data: entries } = await sb.from('bill_payee_entries').select('*').in('payee_id', ids);
+  owedToMeRows = linkedPayees.map(p=>{
+    const es = (entries||[]).filter(e=>e.payee_id===p.id);
+    const owe = es.filter(e=>e.entry_type==='owe').reduce((a,x)=>a+Number(x.amount),0);
+    const paid = es.filter(e=>e.entry_type==='paid').reduce((a,x)=>a+Number(x.amount),0);
+    return { fromEmail:p.user_email, balance: owe-paid, count: es.length };
+  });
+  renderOwedToMe();
+}
+function renderOwedToMe(){
+  const el=document.getElementById('owed-to-me-list');
+  if(!el) return;
+  if(!owedToMeRows.length){ el.innerHTML = `<div class="empty-state"><span>🔁</span>No one in the system has logged owing you anything yet</div>`; return; }
+  el.innerHTML = owedToMeRows.map(r=>{
+    const su = allSystemUsers.find(u=>u.email.toLowerCase()===r.fromEmail.toLowerCase());
+    const name = su ? su.name : r.fromEmail;
+    return `<div class="owed-row settle"><div class="b-left"><div class="b-name">${escapeHtml(name)}</div><div class="b-sub">${r.count} entr${r.count===1?'y':'ies'}</div></div><div class="b-amt ${r.balance>0?'pos':'neg'}">${dhs(Math.max(r.balance,0))}</div></div>`;
   }).join('');
 }
 
@@ -807,7 +876,7 @@ async function setDelegate(id,email){
 }
 async function adminSendOneReport(email){
   if(!confirm(`Email ${email} their report now?`)) return;
-  const { error } = await sb.functions.invoke('send-report', { body:{ type:'bill', month: viewMonth, target_email: email } });
+  const { error } = await sb.functions.invoke('send-report', { body:{ type:'combined', month: viewMonth, target_email: email } });
   toast(error?'Send failed':'Report sent 📧');
 }
 async function createUser(){
