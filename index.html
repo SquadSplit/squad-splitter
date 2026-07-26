@@ -522,7 +522,7 @@ async function sendOTP(){
     },800);return;
   }
   try{
-    const{data,error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:null}});
+    const{data,error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:window.location.origin+window.location.pathname}});
     console.log('OTP result:',{data,error});
     btn.innerHTML='📨 Send OTP';btn.disabled=false;
     if(error){showErr('err2','❌ '+error.message);return;}
@@ -1019,7 +1019,7 @@ async function emailSquadReport(){
   if(isDemoMode||!sb){showToast('📧 Reports need the live database — this works once deployed');return;}
   const btn=document.getElementById('btn-email-squad-report');
   btn.disabled=true;const oldTxt=btn.textContent;btn.textContent='Sending…';
-  const{error}=await sb.functions.invoke('send-report',{body:{type:'squad',member_id:currentUser.id,to_email:currentEmail,month:viewMonth}});
+  const{error}=await sb.functions.invoke('send-report',{body:{type:'combined',month:viewMonth}});
   btn.disabled=false;btn.textContent=oldTxt;
   if(error){showToast('⚠️ Could not send — check the Edge Function is deployed');return;}
   showToast(`📧 Report on its way to ${currentEmail}`);
@@ -1143,7 +1143,7 @@ function renderAdminMembers(){
 async function adminSendSquadReport(memberId,toEmail){
   if(isDemoMode||!sb){showToast('📧 Needs the live database');return;}
   if(!confirm(`Email ${toEmail} their Squad Splitter report now?`))return;
-  const{error}=await sb.functions.invoke('send-report',{body:{type:'squad',member_id:memberId,to_email:toEmail,month:viewMonth}});
+  const{error}=await sb.functions.invoke('send-report',{body:{type:'combined',month:viewMonth,target_email:toEmail}});
   showToast(error?'⚠️ Send failed':`📧 Sent to ${toEmail}`);
 }
 
