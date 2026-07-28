@@ -194,21 +194,50 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
       <button onclick="changeMonth(1)">›</button>
     </div>
 
-    <div class="summary-grid">
-      <div class="card">
-        <div class="s-label">Spent this month</div>
-        <div class="s-val" id="sum-spent">—</div>
-      </div>
-      <div class="card">
-        <div class="s-label">You owe overall</div>
-        <div class="s-val" id="sum-owe">—</div>
-      </div>
+    <div class="admin-tabs" style="padding:0 0 12px;border:none;">
+      <button class="admin-tab-btn active" onclick="switchHomeTab('spent')" id="htab-spent">💵 Spent</button>
+      <button class="admin-tab-btn" onclick="switchHomeTab('owe')" id="htab-owe">⚖️ You Owe</button>
+      <button class="admin-tab-btn" onclick="switchHomeTab('owedtome')" id="htab-owedtome">🔁 Owed to You</button>
     </div>
 
     <button class="report-btn" id="btn-email-report" onclick="emailMyReport()">📧 Email me this month's report</button>
 
-    <div class="section-title">📅 This month's spending</div>
-    <div id="expense-list"></div>
+    <div class="admin-tab-page active" id="hometab-spent">
+      <div class="card" style="text-align:center;">
+        <div class="s-label">Spent this month</div>
+        <div class="s-val" id="sum-spent" style="font-size:1.6rem;">—</div>
+      </div>
+      <div class="section-title" style="font-size:1rem;">📅 This month's spending</div>
+      <div id="expense-list"></div>
+    </div>
+
+    <div class="admin-tab-page" id="hometab-owe">
+      <div class="card" style="text-align:center;">
+        <div class="s-label">You owe overall</div>
+        <div class="s-val" id="sum-owe" style="font-size:1.6rem;">—</div>
+      </div>
+      <div class="card">
+        <div class="fg">
+          <label>Record a payment you made to the admin</label>
+          <input type="number" id="settle-amount" placeholder="Amount (AED)" step="0.01" min="0">
+        </div>
+        <button class="btn-add" onclick="recordSettlement()">Record Payment</button>
+      </div>
+      <div class="section-title" style="font-size:1rem;">Owed to admin</div>
+      <div id="owed-list"></div>
+      <div class="section-title" style="font-size:1rem;margin-top:14px;">Payment history</div>
+      <div id="settle-list"></div>
+      <div class="section-title" style="font-size:1.1rem;margin-top:22px;">🤝 People you owe</div>
+      <div id="payee-balance-list"></div>
+    </div>
+
+    <div class="admin-tab-page" id="hometab-owedtome">
+      <div class="card" style="text-align:center;">
+        <div class="s-label">Owed to you</div>
+        <div class="s-val" id="sum-owedtome" style="font-size:1.6rem;">—</div>
+      </div>
+      <div id="owed-to-me-list"></div>
+    </div>
   </div>
 
   <!-- ADD EXPENSE -->
@@ -216,7 +245,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <div class="section-title">➕ Add</div>
     <div class="admin-tabs" style="padding:0 0 12px;border:none;">
       <button class="admin-tab-btn active" onclick="switchAddTab('spend')" id="atab-spend">💵 Personal Spend</button>
-      <button class="admin-tab-btn" onclick="switchAddTab('payee')" id="atab-payee">🤝 Payee Ledger</button>
+      <button class="admin-tab-btn" onclick="switchAddTab('payee')" id="atab-payee">🤝 Party Ledger</button>
     </div>
 
     <div class="admin-tab-page active" id="addtab-spend">
@@ -289,7 +318,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
           <input type="text" id="pe-note" placeholder="What's this for?">
         </div>
         <button class="btn-add" onclick="addPayeeEntry()">Save Entry</button>
-        <p style="text-align:center;font-size:.68rem;color:var(--muted);margin-top:10px;">Picked someone from this system? They'll see this on their own "🔁 Owed to me" tab. Typed a new name instead? Only you can see it.</p>
+        <p style="text-align:center;font-size:.68rem;color:var(--muted);margin-top:10px;">Only parties added in the 🎉 Party tab show up here. Add someone new any time from either place.</p>
       </div>
     </div>
   </div>
@@ -308,41 +337,33 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     </div>
   </div>
 
-  <!-- OWED -->
-  <div class="page" id="page-owed">
-    <div class="section-title">⚖️ Owed &amp; Settle</div>
-    <div class="card" style="text-align:center;">
-      <div class="s-label">Total you owe the admin</div>
-      <div class="s-val" id="owed-balance" style="font-size:1.6rem;">—</div>
-    </div>
-
+  <!-- PARTY (replaces the old separate Owed page — its content now lives in Home's tabs) -->
+  <div class="page" id="page-party">
+    <div class="section-title">🎉 Your parties</div>
+    <p style="font-size:.72rem;color:var(--muted);margin-top:-8px;margin-bottom:14px;">People or businesses you might owe money to — add them here once, then pick them any time from ➕ Add → Party Ledger.</p>
+    <div class="cards-grid" id="party-grid"></div>
     <div class="card">
       <div class="fg">
-        <label>Record a payment you made to the admin</label>
-        <input type="number" id="settle-amount" placeholder="Amount (AED)" step="0.01" min="0">
+        <label>Name</label>
+        <input type="text" id="new-party-name" placeholder="e.g. Landlord, Sara, Electricity Co.">
       </div>
-      <button class="btn-add" onclick="recordSettlement()">Record Payment</button>
+      <div class="fg">
+        <label>Email (optional)</label>
+        <input type="email" id="new-party-email" placeholder="their@email.com — leave blank if none">
+      </div>
+      <button class="btn-add" onclick="addParty()">Add Party</button>
+      <p style="text-align:center;font-size:.68rem;color:var(--muted);margin-top:10px;">If you add their email, they'll get their own copy of anything you log about them when reports go out — and if that email happens to belong to someone already using this app, they'll also see it under their own "🔁 Owed to You" tab.</p>
     </div>
-
-    <div class="section-title" style="font-size:1rem;">Owed to admin</div>
-    <div id="owed-list"></div>
-    <div class="section-title" style="font-size:1rem;margin-top:14px;">Payment history</div>
-    <div id="settle-list"></div>
-
-    <div class="section-title" style="font-size:1.1rem;margin-top:22px;">🤝 People you owe</div>
-    <div id="payee-balance-list"></div>
-
-    <div class="section-title" style="font-size:1.1rem;margin-top:22px;">🔁 Owed to me</div>
-    <div id="owed-to-me-list"></div>
   </div>
 
   <div class="bottom-nav">
     <button class="nav-btn active" onclick="switchPage('home')" id="nav-home"><span class="ni">🏠</span><span class="nl">Home</span></button>
     <button class="nav-btn" onclick="switchPage('add')" id="nav-add"><span class="ni">➕</span><span class="nl">Add</span></button>
     <button class="nav-btn" onclick="switchPage('cards')" id="nav-cards"><span class="ni">💳</span><span class="nl">Cards</span></button>
-    <button class="nav-btn" onclick="switchPage('owed')" id="nav-owed"><span class="ni">⚖️</span><span class="nl">Owed</span></button>
+    <button class="nav-btn" onclick="switchPage('party')" id="nav-party"><span class="ni">🎉</span><span class="nl">Party</span></button>
   </div>
 </div>
+
 
 <!-- ═══ ADMIN OVERLAY ═══ -->
 <div class="admin-overlay" id="admin-overlay">
@@ -551,10 +572,8 @@ async function enterApp(){
   document.getElementById('header-sub').textContent = managing.group_type==='squad_split' ? 'Squad member · private tracker' : 'Your private dashboard';
   if(managing.group_type==='squad_split') document.getElementById('link-to-squad').style.display='inline-block';
   if(me.is_admin) document.getElementById('btn-open-admin').style.display='inline-block';
-  await loadSystemUsersDirectory();
   await loadMyData();
   await loadOwedToMe();
-  renderHome();
 }
 
 async function loadMyData(){
@@ -570,7 +589,8 @@ async function loadMyData(){
   myPayees = p.data||[]; myPayeeEntries = pe.data||[];
   fillCardSelect();
   renderCards();
-  renderOwed();
+  renderPartyGrid();
+  renderHome(); // always refresh the dashboard, regardless of which page/tab is currently showing
 }
 
 // ── NAV ──────────────────────────────────────
@@ -581,6 +601,12 @@ function switchPage(name){
   document.getElementById('nav-'+name).classList.add('active');
   if(name==='home') renderHome();
 }
+function switchHomeTab(name){
+  document.querySelectorAll('#htab-spent,#htab-owe,#htab-owedtome').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#hometab-spent,#hometab-owe,#hometab-owedtome').forEach(p=>p.classList.remove('active'));
+  document.getElementById('htab-'+name).classList.add('active');
+  document.getElementById('hometab-'+name).classList.add('active');
+}
 function changeMonth(d){
   const [y,m]=viewMonth.split('-').map(Number);
   const nd=new Date(y,m-1+d,1);
@@ -588,24 +614,18 @@ function changeMonth(d){
   renderHome();
 }
 
-// ── HOME / EXPENSES ──────────────────────────
+// ── HOME: 3 tabs — Spent / You Owe / Owed to You ─────────────
 function renderHome(){
   const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const [y,m]=viewMonth.split('-').map(Number);
   document.getElementById('month-title').textContent = `${MN[m-1]} ${y}`;
+
+  // -- Tab 1: Spent this month --
   const monthExp = myExpenses.filter(x=>x.month===viewMonth);
   const spent = monthExp.reduce((a,x)=>a+Number(x.amount),0);
   document.getElementById('sum-spent').innerHTML = dhs(spent);
-  const totalOwed = myOwed.reduce((a,x)=>a+Number(x.amount),0);
-  const totalSettled = mySettlements.reduce((a,x)=>a+Number(x.amount),0);
-  const bal = totalOwed-totalSettled;
-  const sumOweEl=document.getElementById('sum-owe');
-  sumOweEl.innerHTML = dhs(Math.max(bal,0));
-  sumOweEl.style.color = bal>0 ? 'var(--red)' : 'var(--green)';
-
   const list=document.getElementById('expense-list');
-  if(!monthExp.length){ list.innerHTML=`<div class="empty-state"><span>🧾</span>No spending logged for this month yet</div>`; return; }
-  list.innerHTML = monthExp.sort((a,b)=>b.date.localeCompare(a.date)).map(x=>{
+  list.innerHTML = monthExp.length ? monthExp.sort((a,b)=>b.date.localeCompare(a.date)).map(x=>{
     const card = myCards.find(c=>c.id===x.card_id);
     return `<div class="exp-item-card">
       <div class="exp-icon">${CAT_ICONS[x.category]||'📦'}</div>
@@ -615,7 +635,31 @@ function renderHome(){
       </div>
       <div style="font-weight:800;">${dhs(x.amount)}</div>
     </div>`;
-  }).join('');
+  }).join('') : `<div class="empty-state"><span>🧾</span>No spending logged for this month yet</div>`;
+
+  // -- Tab 2: You Owe (admin + parties) --
+  const totalOwed = myOwed.reduce((a,x)=>a+Number(x.amount),0);
+  const totalSettled = mySettlements.reduce((a,x)=>a+Number(x.amount),0);
+  const bal = totalOwed-totalSettled;
+  const sumOweEl=document.getElementById('sum-owe');
+  sumOweEl.innerHTML = dhs(Math.max(bal,0));
+  sumOweEl.style.color = bal>0 ? 'var(--red)' : 'var(--green)';
+
+  const oList=document.getElementById('owed-list');
+  oList.innerHTML = myOwed.length ? myOwed.map(o=>`
+    <div class="owed-row"><div class="b-left"><div class="b-name">${escapeHtml(o.note||'Owed amount')}</div><div class="b-sub">${o.month}</div></div><div class="b-amt neg">${dhs(o.amount)}</div>${me.is_admin?`<button class="icon-btn" onclick="deleteOwedEntry(${o.id})" title="Delete (mistake?)">🗑️</button>`:''}</div>
+  `).join('') : `<div class="empty-state"><span>✅</span>Nothing added yet</div>`;
+
+  const sList=document.getElementById('settle-list');
+  sList.innerHTML = mySettlements.length ? mySettlements.map(s=>`
+    <div class="owed-row settle"><div class="b-left"><div class="b-name">Payment made</div><div class="b-sub">${s.month}</div></div><div class="b-amt pos">${dhs(s.amount)}</div></div>
+  `).join('') : `<div class="empty-state"><span>💸</span>No payments recorded yet</div>`;
+  renderPayeeBalances();
+
+  // -- Tab 3: Owed to You --
+  const owedToMeTotal = owedToMeRows.reduce((a,r)=>a+Math.max(r.balance,0),0);
+  document.getElementById('sum-owedtome').innerHTML = dhs(owedToMeTotal);
+  renderOwedToMe();
 }
 
 async function emailMyReport(){
@@ -647,6 +691,7 @@ async function addExpense(){
   await loadMyData();
   viewMonth = month;
   switchPage('home');
+  switchHomeTab('spent');
 }
 
 // ── CARDS ─────────────────────────────────────
@@ -674,26 +719,12 @@ async function deleteCard(id){
   await sb.from('bill_cards').delete().eq('id',id);
   await loadMyData();
 }
-
-// ── OWED / SETTLE ─────────────────────────────
-function renderOwed(){
-  const totalOwed = myOwed.reduce((a,x)=>a+Number(x.amount),0);
-  const totalSettled = mySettlements.reduce((a,x)=>a+Number(x.amount),0);
-  const bal = totalOwed-totalSettled;
-  const el=document.getElementById('owed-balance');
-  el.innerHTML = dhs(Math.max(bal,0));
-  el.style.color = bal>0 ? 'var(--red)' : 'var(--green)';
-
-  const oList=document.getElementById('owed-list');
-  oList.innerHTML = myOwed.length ? myOwed.map(o=>`
-    <div class="owed-row"><div class="b-left"><div class="b-name">${escapeHtml(o.note||'Owed amount')}</div><div class="b-sub">${o.month}</div></div><div class="b-amt neg">${dhs(o.amount)}</div></div>
-  `).join('') : `<div class="empty-state"><span>✅</span>Nothing added yet</div>`;
-
-  const sList=document.getElementById('settle-list');
-  sList.innerHTML = mySettlements.length ? mySettlements.map(s=>`
-    <div class="owed-row settle"><div class="b-left"><div class="b-name">Payment made</div><div class="b-sub">${s.month}</div></div><div class="b-amt pos">${dhs(s.amount)}</div></div>
-  `).join('') : `<div class="empty-state"><span>💸</span>No payments recorded yet</div>`;
-  renderPayeeBalances();
+async function deleteOwedEntry(id){
+  if(!confirm('Delete this owed entry? Use this to correct a mistake.')) return;
+  const { error } = await sb.from('bill_owed').delete().eq('id',id);
+  if(error){ toast('Could not delete'); return; }
+  toast('Deleted ✓');
+  await loadMyData();
 }
 async function recordSettlement(){
   const amount=parseFloat(document.getElementById('settle-amount').value);
@@ -706,37 +737,49 @@ async function recordSettlement(){
 }
 
 // ── ADD PAGE SUB-TABS ─────────────────────────
-async function switchAddTab(name){
+function switchAddTab(name){
   document.getElementById('atab-spend').classList.toggle('active', name==='spend');
   document.getElementById('atab-payee').classList.toggle('active', name==='payee');
   document.getElementById('addtab-spend').classList.toggle('active', name==='spend');
   document.getElementById('addtab-payee').classList.toggle('active', name==='payee');
-  if(name==='payee'){ if(!allSystemUsers.length) await loadSystemUsersDirectory(); fillPayeeSelect(); }
+  if(name==='payee') fillPayeeSelect();
 }
 
-// ── PAYEE LEDGER (who I owe — separate from what I owe the admin) ──
-// The directory of everyone registered, so any user (not just admin) can
-// pick a real person instead of typing a name. Loaded once, for everyone.
-let allSystemUsers = [];
-async function loadSystemUsersDirectory(){
-  const { data } = await sb.from('app_users').select('email,name,emoji').order('name');
-  allSystemUsers = (data||[]).filter(u=>u.email.toLowerCase()!==managing.email.toLowerCase());
+// ── PARTY (who I might owe — managed like Cards) ──────────────
+function renderPartyGrid(){
+  const grid=document.getElementById('party-grid');
+  if(!grid) return;
+  grid.innerHTML = myPayees.length ? myPayees.map(p=>`
+    <div class="card-tile">
+      <button class="cdel" onclick="deleteParty(${p.id})">✕</button>
+      <div class="cdot" style="background:${p.color};"></div>
+      <div class="cname">${escapeHtml(p.party_name)}</div>
+      ${p.party_email?`<div style="font-size:.6rem;color:var(--muted);margin-top:2px;">${escapeHtml(p.party_email)}</div>`:''}
+    </div>`).join('') : `<div class="empty-state" style="grid-column:1/-1;"><span>🎉</span>No parties yet — add one below</div>`;
+}
+async function addParty(){
+  const name=document.getElementById('new-party-name').value.trim();
+  const partyEmail=document.getElementById('new-party-email').value.trim().toLowerCase();
+  if(!name){ toast('Enter a name'); return; }
+  const color=CARD_COLORS[myPayees.length % CARD_COLORS.length];
+  const { error } = await sb.from('bill_payees').insert({ user_email:managing.email, party_name:name, party_email:partyEmail||null, color });
+  if(error){ toast('Could not add party'); return; }
+  document.getElementById('new-party-name').value=''; document.getElementById('new-party-email').value='';
+  toast('Party added ✓');
+  await loadMyData();
+}
+async function deleteParty(id){
+  if(!confirm('Remove this party? Past entries stay, just unlinked.')) return;
+  await sb.from('bill_payees').delete().eq('id',id);
+  await loadMyData();
 }
 function fillPayeeSelect(){
   const sel=document.getElementById('pe-payee');
   let html = '<option value="">— choose —</option>';
   if(myPayees.length){
-    html += `<optgroup label="Your existing payees">` +
-      myPayees.map(p=>`<option value="${p.id}">${p.linked_user_email?'🔁 ':''}${escapeHtml(p.payee_name)}</option>`).join('') +
-      `</optgroup>`;
+    html += myPayees.map(p=>`<option value="${p.id}">${escapeHtml(p.party_name)}</option>`).join('');
   }
-  const notYetAdded = allSystemUsers.filter(u=>!myPayees.some(p=>(p.linked_user_email||'').toLowerCase()===u.email.toLowerCase()));
-  if(notYetAdded.length){
-    html += `<optgroup label="People in this system">` +
-      notYetAdded.map(u=>`<option value="user:${u.email}">${u.emoji||'😎'} ${escapeHtml(u.name)}</option>`).join('') +
-      `</optgroup>`;
-  }
-  html += `<option value="new">➕ Someone new (not in this system)</option>`;
+  html += `<option value="new">➕ Someone new</option>`;
   sel.innerHTML = html;
   document.getElementById('pe-new-wrap').style.display='none';
 }
@@ -758,15 +801,8 @@ async function addPayeeEntry(){
   let payeeId;
   if(selection==='new'){
     const color=CARD_COLORS[myPayees.length % CARD_COLORS.length];
-    const { data, error } = await sb.from('bill_payees').insert({ user_email:managing.email, payee_name:newName, color }).select().maybeSingle();
-    if(error||!data){ toast('Could not add payee'); return; }
-    payeeId = data.id;
-  } else if(selection.startsWith('user:')){
-    const email = selection.slice(5);
-    const su = allSystemUsers.find(u=>u.email===email);
-    const color=CARD_COLORS[myPayees.length % CARD_COLORS.length];
-    const { data, error } = await sb.from('bill_payees').insert({ user_email:managing.email, payee_name:su?su.name:email, color, linked_user_email: email.toLowerCase() }).select().maybeSingle();
-    if(error||!data){ toast('Could not add payee'); return; }
+    const { data, error } = await sb.from('bill_payees').insert({ user_email:managing.email, party_name:newName, color }).select().maybeSingle();
+    if(error||!data){ toast('Could not add party'); return; }
     payeeId = data.id;
   } else {
     payeeId = selection;
@@ -778,30 +814,45 @@ async function addPayeeEntry(){
   document.getElementById('pe-new-payee').value=''; document.getElementById('pe-amount').value=''; document.getElementById('pe-note').value='';
   toast('Saved ✓');
   await loadMyData();
-  await loadOwedToMe();
-  switchPage('owed');
+  switchPage('home');
+  switchHomeTab('owe');
 }
 function renderPayeeBalances(){
   const el=document.getElementById('payee-balance-list');
   if(!el) return;
-  if(!myPayees.length){ el.innerHTML = `<div class="empty-state"><span>🤝</span>No one added yet — add one from ➕ Add → Payee Ledger</div>`; return; }
+  if(!myPayees.length){ el.innerHTML = `<div class="empty-state"><span>🤝</span>No parties yet — add one from 🎉 Party</div>`; return; }
   el.innerHTML = myPayees.map(p=>{
     const entries = myPayeeEntries.filter(e=>e.payee_id===p.id);
     const owe = entries.filter(e=>e.entry_type==='owe').reduce((a,x)=>a+Number(x.amount),0);
     const paid = entries.filter(e=>e.entry_type==='paid').reduce((a,x)=>a+Number(x.amount),0);
     const bal = owe-paid;
-    return `<div class="owed-row" style="border-color:${p.color};">
-      <div class="b-left"><div class="b-name">${p.linked_user_email?'🔁 ':''}${escapeHtml(p.payee_name)}</div><div class="b-sub">${entries.length} entr${entries.length===1?'y':'ies'}</div></div>
-      <div class="b-amt ${bal>0?'neg':'pos'}">${dhs(Math.max(bal,0))}</div>
+    const entryRows = entries.slice(0,5).map(e=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:.72rem;color:var(--muted);">
+        <span>${e.date} · ${e.entry_type==='owe'?'owed':'paid'} · ${dhs(e.amount)}${e.note?' · '+escapeHtml(e.note):''}</span>
+        <button class="icon-btn" onclick="deletePayeeEntry(${e.id})" title="Delete (mistake?)">🗑️</button>
+      </div>`).join('');
+    return `<div class="owed-row" style="border-color:${p.color};flex-direction:column;align-items:stretch;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="b-left"><div class="b-name">${escapeHtml(p.party_name)}</div><div class="b-sub">${entries.length} entr${entries.length===1?'y':'ies'}</div></div>
+        <div class="b-amt ${bal>0?'neg':'pos'}">${dhs(Math.max(bal,0))}</div>
+      </div>
+      ${entryRows}
     </div>`;
   }).join('');
 }
+async function deletePayeeEntry(id){
+  if(!confirm('Delete this entry? Use this to correct a mistake.')) return;
+  const { error } = await sb.from('bill_payee_entries').delete().eq('id',id);
+  if(error){ toast('Could not delete'); return; }
+  toast('Deleted ✓');
+  await loadMyData();
+}
 
-// ── REVERSE VIEW: other people who logged ME as their payee ──
+// ── REVERSE VIEW: other people who logged ME as their party ──
 let owedToMeRows = [];
 async function loadOwedToMe(){
-  const { data: linkedPayees } = await sb.from('bill_payees').select('*').ilike('linked_user_email', managing.email);
-  if(!linkedPayees || !linkedPayees.length){ owedToMeRows = []; renderOwedToMe(); return; }
+  const { data: linkedPayees } = await sb.from('bill_payees').select('*').ilike('party_email', managing.email);
+  if(!linkedPayees || !linkedPayees.length){ owedToMeRows = []; renderHome(); return; }
   const ids = linkedPayees.map(p=>p.id);
   const { data: entries } = await sb.from('bill_payee_entries').select('*').in('payee_id', ids);
   owedToMeRows = linkedPayees.map(p=>{
@@ -810,17 +861,13 @@ async function loadOwedToMe(){
     const paid = es.filter(e=>e.entry_type==='paid').reduce((a,x)=>a+Number(x.amount),0);
     return { fromEmail:p.user_email, balance: owe-paid, count: es.length };
   });
-  renderOwedToMe();
+  renderHome();
 }
 function renderOwedToMe(){
   const el=document.getElementById('owed-to-me-list');
   if(!el) return;
-  if(!owedToMeRows.length){ el.innerHTML = `<div class="empty-state"><span>🔁</span>No one in the system has logged owing you anything yet</div>`; return; }
-  el.innerHTML = owedToMeRows.map(r=>{
-    const su = allSystemUsers.find(u=>u.email.toLowerCase()===r.fromEmail.toLowerCase());
-    const name = su ? su.name : r.fromEmail;
-    return `<div class="owed-row settle"><div class="b-left"><div class="b-name">${escapeHtml(name)}</div><div class="b-sub">${r.count} entr${r.count===1?'y':'ies'}</div></div><div class="b-amt ${r.balance>0?'pos':'neg'}">${dhs(Math.max(r.balance,0))}</div></div>`;
-  }).join('');
+  if(!owedToMeRows.length){ el.innerHTML = `<div class="empty-state"><span>🔁</span>No one has logged owing you anything yet</div>`; return; }
+  el.innerHTML = owedToMeRows.map(r=>`<div class="owed-row settle"><div class="b-left"><div class="b-name">${escapeHtml(r.fromEmail)}</div><div class="b-sub">${r.count} entr${r.count===1?'y':'ies'}</div></div><div class="b-amt ${r.balance>0?'pos':'neg'}">${dhs(Math.max(r.balance,0))}</div></div>`).join('');
 }
 
 // ── ADMIN ──────────────────────────────────────
