@@ -161,6 +161,16 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
       <button class="btn btn-ghost" onclick="backToEmail()">← Try another email</button>
     </div>
 
+    <div class="step" id="step-conn-error">
+      <div class="not-registered">
+        <span class="big-emoji">⚠️</span>
+        <p style="font-weight:800;margin-bottom:6px;">Couldn't verify your account</p>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:20px;">Usually just a slow connection. Tap retry — you won't need to re-enter the code.</p>
+      </div>
+      <button class="btn btn-primary" onclick="retryTryEnter()">🔄 Retry</button>
+      <button class="btn btn-ghost" onclick="backToEmail()">← Start over</button>
+    </div>
+
     <div class="step" id="step-pick-account">
       <label class="form-label">Whose account are you managing?</label>
       <p style="text-align:center;font-size:.78rem;color:var(--muted);margin-bottom:14px;">You've been given delegate access to enter data for someone else.</p>
@@ -178,8 +188,9 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     </div>
     <div class="header-right">
       <a href="index.html" id="link-to-squad" style="display:none;text-decoration:none;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:7px 12px;font-family:'Fredoka One',cursive;font-size:.78rem;">💸 Squad Splitter</a>
+      <button class="icon-btn" id="btn-notif" onclick="openNotifPanel()" style="position:relative;font-size:1.15rem;padding:4px 7px;" title="Notifications">🔔<span id="notif-badge" style="display:none;position:absolute;top:0;right:0;background:var(--red);color:#fff;font-size:.55rem;font-weight:800;border-radius:8px;padding:1px 4px;min-width:14px;line-height:1.3;"></span></button>
       <button class="btn-admin-panel" id="btn-open-admin" style="display:none;" onclick="openAdmin()">⚙️ Admin</button>
-      <div class="user-pill" onclick="logout()" title="Tap to log out">
+      <div class="user-pill" id="user-pill-btn" onclick="openUserMenu()" title="Tap for account options">
         <div class="av-sm" id="me-avatar" style="background:var(--accent4);"></div>
         <span class="uname" id="me-name"></span>
       </div>
@@ -332,6 +343,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
         <label>Add a new card</label>
         <input type="text" id="new-card-name" placeholder="e.g. HDFC Debit, Cash, Amex">
       </div>
+      <div class="fg">
+        <label>Bill due day (optional — enables reminders)</label>
+        <input type="number" id="new-card-dueday" min="1" max="31" placeholder="e.g. 15">
+      </div>
       <button class="btn-add" onclick="addCard()">Add Card</button>
       <p style="text-align:center;font-size:.68rem;color:var(--muted);margin-top:10px;">Just a label — never enter a real card number here</p>
     </div>
@@ -432,6 +447,39 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
   </div>
 </div>
 
+<!-- ═══ USER MENU (switch account / log out) ═══ -->
+<div class="admin-overlay" id="user-menu-overlay" style="z-index:220;">
+  <div class="admin-top">
+    <h2 id="user-menu-title">👤 Account</h2>
+    <button class="close-admin" onclick="closeUserMenu()">✕</button>
+  </div>
+  <div class="admin-body" id="user-menu-list"></div>
+</div>
+
+<!-- ═══ SWITCH ACCOUNT (delegate access) ═══ -->
+<div class="admin-overlay" id="switch-overlay" style="z-index:230;">
+  <div class="admin-top">
+    <h2>🔀 Switch Account</h2>
+    <button class="close-admin" onclick="closeSwitcher()">✕</button>
+  </div>
+  <div class="admin-body">
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px;">Pick which account you want to view and enter data for.</p>
+    <div id="switch-account-list"></div>
+  </div>
+</div>
+
+<!-- ═══ NOTIFICATIONS ═══ -->
+<div class="admin-overlay" id="notif-overlay" style="z-index:240;">
+  <div class="admin-top">
+    <h2>🔔 Notifications</h2>
+    <button class="close-admin" onclick="closeNotifPanel()">✕</button>
+  </div>
+  <div class="admin-body">
+    <button class="btn btn-ghost" style="margin-bottom:12px;" onclick="markAllNotifRead()">✓ Mark all as read</button>
+    <div id="notif-list"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -447,7 +495,7 @@ let me = null;               // row from app_users — who actually logged in
 let managing = null;         // row from app_users — whose account we're viewing (may be delegated)
 let currentEmail = '';
 let viewMonth = new Date().toISOString().slice(0,7);
-let myCards = [], myExpenses = [], myOwed = [], mySettlements = [], myPayees = [], myPayeeEntries = [];
+let myCards = [], myExpenses = [], myOwed = [], mySettlements = [], myPayees = [], myPayeeEntries = [], myCardPayments = [];
 let allUsers = [];
 let timerInterval = null;
 
@@ -456,19 +504,35 @@ function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg
 function showErr(id,msg){ const e=document.getElementById(id); e.textContent=msg; e.style.display='block'; setTimeout(()=>e.style.display='none',4000); }
 
 // ── INIT ─────────────────────────────────────
+// v5.0 fix: this used to call sb.auth.getSession() exactly once and only
+// route in if it happened to already have the session ready. On a hard
+// refresh, getSession() can occasionally resolve before the client has
+// fully restored the session from localStorage, which silently dumped a
+// genuinely logged-in person back on the login screen. onAuthStateChange
+// is the pattern Supabase recommends specifically to avoid this race: it
+// fires once the client is truly ready (with the session, if any), and
+// again on any later change — so it's now the primary source of truth,
+// with a short fallback purely as a safety net.
+let _routedIn = false;
+async function routeFromSession(session){
+  if (_routedIn) return;
+  if (!session?.user?.email) return;
+  _routedIn = true;
+  currentEmail = session.user.email.toLowerCase();
+  sessionStorage.setItem('bt_email', currentEmail);
+  await tryEnter();
+}
 window.onload = async () => {
   document.getElementById('add-date').value = new Date().toISOString().slice(0,10);
   document.getElementById('pe-date').value = new Date().toISOString().slice(0,10);
   document.getElementById('ow-month').value = viewMonth;
   buildOTPBoxes();
-  // Same login as Squad Splitter — if there's already a verified session
-  // (from either page), skip straight in instead of asking for OTP again.
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user?.email) {
-    currentEmail = session.user.email.toLowerCase();
-    sessionStorage.setItem('bt_email', currentEmail);
-    await tryEnter();
-  }
+  sb.auth.onAuthStateChange((_event, session) => { routeFromSession(session); });
+  setTimeout(async () => {
+    if (_routedIn) return;
+    const { data: { session } } = await sb.auth.getSession();
+    await routeFromSession(session);
+  }, 500);
 };
 
 // ── LOGIN: send/verify OTP (Supabase Auth, same pattern as Squad Splitter) ──
@@ -524,6 +588,12 @@ async function tryEnter(){
     sb.from('app_users').select('*').ilike('email', currentEmail).maybeSingle(),
     sb.from('app_users').select('*').ilike('delegate_email', currentEmail)
   ]);
+  if (ownRes.error || delRes.error) {
+    console.error('tryEnter lookup failed:', ownRes.error || delRes.error);
+    document.querySelectorAll('#screen-login .step').forEach(s=>s.classList.remove('active'));
+    document.getElementById('step-conn-error').classList.add('active');
+    return;
+  }
   const own = ownRes.data || null;
   const delegated = delRes.data || [];
   if(!own && delegated.length===0){
@@ -541,19 +611,82 @@ async function tryEnter(){
   if(own) options.push({...own, _label:'Your own account'});
   delegated.forEach(d=>options.push({...d, _label:'Delegated — '+d.name}));
   me = own || delegated[0]; // "me" = own identity if it exists, else fall back
-  const list = document.getElementById('pick-account-list');
+  window._accountOptions = options;
+  renderAccountList('pick-account-list');
+  document.getElementById('step-otp').classList.remove('active');
+  document.getElementById('step-pick-account').classList.add('active');
+}
+async function retryTryEnter(){
+  document.getElementById('step-conn-error').classList.remove('active');
+  document.getElementById('step-otp').classList.add('active');
+  await tryEnter();
+}
+function renderAccountList(containerId){
+  const options = window._accountOptions || [];
+  const list = document.getElementById(containerId);
   list.innerHTML = options.map((o,i)=>`
     <button class="btn btn-ghost" style="display:flex;align-items:center;gap:10px;text-align:left;margin-bottom:8px;" onclick="chooseAccount(${i})">
       <span style="font-size:1.3rem;">${o.emoji||'😎'}</span>
       <span><b style="display:block;">${o.name}</b><span style="font-size:.72rem;color:var(--muted);">${o._label}</span></span>
     </button>`).join('');
-  window._accountOptions = options;
-  document.getElementById('step-otp').classList.remove('active');
-  document.getElementById('step-pick-account').classList.add('active');
 }
 async function chooseAccount(i){
   managing = window._accountOptions[i];
+  document.getElementById('switch-overlay')?.classList.remove('active');
   await enterApp();
+}
+function openUserMenu(){
+  const hasDelegates = (window._accountOptions||[]).length > 1;
+  document.getElementById('user-menu-title').textContent = '👤 ' + (managing?.name || 'Account');
+  document.getElementById('user-menu-list').innerHTML = `
+    ${hasDelegates ? `<button class="btn btn-ghost" style="width:100%;margin-bottom:8px;" onclick="closeUserMenu();openSwitcher();">🔀 Switch account</button>` : ''}
+    <button class="btn btn-ghost" style="width:100%;color:var(--red);" onclick="closeUserMenu();logout();">🚪 Log out</button>
+  `;
+  document.getElementById('user-menu-overlay').classList.add('active');
+}
+function closeUserMenu(){ document.getElementById('user-menu-overlay').classList.remove('active'); }
+function openSwitcher(){
+  renderAccountList('switch-account-list');
+  document.getElementById('switch-overlay').classList.add('active');
+}
+function closeSwitcher(){ document.getElementById('switch-overlay').classList.remove('active'); }
+
+// ── NOTIFICATIONS ────────────────────────────
+let notifRows = [];
+async function loadNotifications(){
+  const { data, error } = await sb.from('bill_notifications')
+    .select('*').ilike('user_email', managing.email)
+    .order('created_at', { ascending:false }).limit(50);
+  if(error){ console.error('loadNotifications:', error); return; }
+  notifRows = data || [];
+  const unread = notifRows.filter(n=>!n.is_read).length;
+  const badge = document.getElementById('notif-badge');
+  if(unread>0){ badge.style.display='block'; badge.textContent = unread>9?'9+':unread; }
+  else { badge.style.display='none'; }
+}
+function openNotifPanel(){
+  renderNotifPanel();
+  document.getElementById('notif-overlay').classList.add('active');
+}
+function closeNotifPanel(){ document.getElementById('notif-overlay').classList.remove('active'); }
+function renderNotifPanel(){
+  const el = document.getElementById('notif-list');
+  if(notifRows.length===0){ el.innerHTML = '<p style="text-align:center;color:var(--muted);padding:30px 0;">No notifications yet 🎉</p>'; return; }
+  el.innerHTML = notifRows.map(n=>`
+    <div style="background:${n.is_read?'var(--card2)':'rgba(255,138,61,.12)'};border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:.82rem;margin-bottom:3px;">${n.is_read?'':'🟠 '}${escapeHtml(n.title)}</div>
+      <div style="font-size:.76rem;color:var(--muted);">${escapeHtml(n.message)}</div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:6px;">${new Date(n.created_at).toLocaleString()}</div>
+    </div>`).join('');
+  markAllNotifRead(true);
+}
+async function markAllNotifRead(silent){
+  const unreadIds = notifRows.filter(n=>!n.is_read).map(n=>n.id);
+  if(unreadIds.length===0) return;
+  await sb.from('bill_notifications').update({is_read:true}).in('id', unreadIds);
+  notifRows.forEach(n=>n.is_read=true);
+  document.getElementById('notif-badge').style.display='none';
+  if(!silent) renderNotifPanel();
 }
 async function logout(){
   if(!confirm('Log out?')) return;
@@ -574,6 +707,40 @@ async function enterApp(){
   if(me.is_admin) document.getElementById('btn-open-admin').style.display='inline-block';
   await loadMyData();
   await loadOwedToMe();
+  await loadNotifications();
+}
+
+// Computes the due date for a given billing day, rolled forward to the next
+// occurrence on/after `from`. Clamps to the last real day of short months
+// (e.g. due_day 31 in February -> Feb 28/29) instead of overflowing into
+// the next month, which is the same overflow class of bug as the calendar
+// fix above, just in date-math form.
+function nextDueDate(dueDay, from=new Date()){
+  const clampDay=(y,m)=>Math.min(dueDay, new Date(y, m+1, 0).getDate());
+  let y=from.getFullYear(), m=from.getMonth();
+  let d=new Date(y, m, clampDay(y,m));
+  d.setHours(0,0,0,0);
+  const today=new Date(from); today.setHours(0,0,0,0);
+  if(d < today){ m+=1; d=new Date(y, m, clampDay(y,m)); }
+  return d;
+}
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+async function ensureCardPaymentRows(){
+  const cardsWithDue = myCards.filter(c=>c.due_day);
+  if(cardsWithDue.length===0) return;
+  const rows = cardsWithDue.map(c=>{
+    const due = nextDueDate(c.due_day);
+    const month = due.getFullYear()+'-'+String(due.getMonth()+1).padStart(2,'0');
+    const spent = myExpenses.filter(x=>x.card_id===c.id && x.month===month).reduce((a,x)=>a+Number(x.amount),0);
+    return { card_id:c.id, user_email:managing.email, month, due_date:ymd(due), amount_due:spent };
+  });
+  // upsert without clobbering amount_due/status the user may have already edited/paid for this cycle
+  const { data: existing } = await sb.from('bill_card_payments').select('card_id,month,status,amount_due')
+    .ilike('user_email', managing.email).in('month', [...new Set(rows.map(r=>r.month))]);
+  const existingKey = new Set((existing||[]).map(r=>r.card_id+'|'+r.month));
+  const toInsert = rows.filter(r=>!existingKey.has(r.card_id+'|'+r.month));
+  if(toInsert.length) await sb.from('bill_card_payments').insert(toInsert);
 }
 
 async function loadMyData(){
@@ -587,6 +754,9 @@ async function loadMyData(){
   ]);
   myCards = c.data||[]; myExpenses = e.data||[]; myOwed = o.data||[]; mySettlements = s.data||[];
   myPayees = p.data||[]; myPayeeEntries = pe.data||[];
+  await ensureCardPaymentRows();
+  const cp = await sb.from('bill_card_payments').select('*').ilike('user_email', managing.email).order('due_date');
+  myCardPayments = cp.data||[];
   fillCardSelect();
   renderCards();
   renderPartyGrid();
@@ -608,9 +778,14 @@ function switchHomeTab(name){
   document.getElementById('hometab-'+name).classList.add('active');
 }
 function changeMonth(d){
+  // NOTE: must use local getFullYear()/getMonth(), never toISOString() here.
+  // toISOString() converts to UTC — in any timezone ahead of UTC (e.g. UAE,
+  // UTC+4), local midnight on the 1st becomes the previous day in UTC, which
+  // silently shifts the computed month back by one. That made "next month"
+  // appear frozen and "previous month" jump back two months instead of one.
   const [y,m]=viewMonth.split('-').map(Number);
   const nd=new Date(y,m-1+d,1);
-  viewMonth = nd.toISOString().slice(0,7);
+  viewMonth = nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0');
   renderHome();
 }
 
@@ -697,21 +872,50 @@ async function addExpense(){
 // ── CARDS ─────────────────────────────────────
 function renderCards(){
   const grid=document.getElementById('cards-grid');
-  grid.innerHTML = myCards.length ? myCards.map(c=>`
+  grid.innerHTML = myCards.length ? myCards.map(c=>{
+    let dueBlock = '';
+    if(c.due_day){
+      const pay = myCardPayments.filter(p=>p.card_id===c.id).sort((a,b)=>a.due_date.localeCompare(b.due_date))[0];
+      if(pay){
+        const days = Math.round((new Date(pay.due_date+'T00:00:00') - new Date(new Date().toDateString()))/86400000);
+        const isPaid = pay.status==='paid';
+        const isOverdue = !isPaid && days<0;
+        const color = isPaid?'var(--green)':isOverdue?'var(--red)':(days<=7?'#ff8a3d':'var(--muted)');
+        const label = isPaid?'Paid ✓':isOverdue?`Overdue ${Math.abs(days)}d`:(days===0?'Due today':`Due in ${days}d`);
+        dueBlock = `
+          <div style="font-size:.68rem;color:${color};font-weight:800;margin-top:5px;">${label}</div>
+          <div style="font-size:.66rem;color:var(--muted);">${pay.due_date} · Est. ${dhs(pay.amount_due)}</div>
+          ${!isPaid?`<button class="btn btn-ghost" style="padding:3px 8px;font-size:.63rem;margin-top:5px;width:100%;" onclick="markCardPaid(${pay.id})">✓ Mark paid</button>`:''}`;
+      }
+    } else {
+      dueBlock = `<div style="font-size:.62rem;color:var(--muted);margin-top:5px;">No due date set</div>`;
+    }
+    return `
     <div class="card-tile">
       <button class="cdel" onclick="deleteCard(${c.id})">✕</button>
       <div class="cdot" style="background:${c.color};"></div>
       <div class="cname">${escapeHtml(c.card_name)}</div>
-    </div>`).join('') : `<div class="empty-state" style="grid-column:1/-1;"><span>💳</span>No cards yet — add one below</div>`;
+      ${dueBlock}
+    </div>`;
+  }).join('') : `<div class="empty-state" style="grid-column:1/-1;"><span>💳</span>No cards yet — add one below</div>`;
 }
 async function addCard(){
   const name=document.getElementById('new-card-name').value.trim();
   if(!name){ toast('Enter a card name'); return; }
+  const dueDayRaw = document.getElementById('new-card-dueday').value;
+  const due_day = dueDayRaw ? Math.min(31, Math.max(1, parseInt(dueDayRaw,10))) : null;
   const color=CARD_COLORS[myCards.length % CARD_COLORS.length];
-  const { error } = await sb.from('bill_cards').insert({ user_email:managing.email, card_name:name, color });
+  const { error } = await sb.from('bill_cards').insert({ user_email:managing.email, card_name:name, color, due_day, reminder_enabled: !!due_day });
   if(error){ toast('Could not add card'); return; }
   document.getElementById('new-card-name').value='';
+  document.getElementById('new-card-dueday').value='';
   toast('Card added ✓');
+  await loadMyData();
+}
+async function markCardPaid(paymentId){
+  const { error } = await sb.from('bill_card_payments').update({ status:'paid', paid_at:new Date().toISOString() }).eq('id', paymentId);
+  if(error){ toast('Could not update — try again'); return; }
+  toast('Marked as paid ✓');
   await loadMyData();
 }
 async function deleteCard(id){
@@ -720,10 +924,12 @@ async function deleteCard(id){
   await loadMyData();
 }
 async function deleteOwedEntry(id){
-  if(!confirm('Delete this owed entry? Use this to correct a mistake.')) return;
-  const { error } = await sb.from('bill_owed').delete().eq('id',id);
-  if(error){ toast('Could not delete'); return; }
-  toast('Deleted ✓');
+  const reason = prompt('Why are you deleting this entry? (this will be shown to the other person)');
+  if(reason===null) return; // cancelled
+  if(!reason.trim()){ toast('A reason is required so the other person knows why'); return; }
+  const { data, error } = await sb.rpc('delete_owed_entry', { p_id:id, p_reason:reason.trim() });
+  if(error || !data?.ok){ toast('Could not delete — ' + (data?.error || 'try again')); return; }
+  toast('Deleted — they\'ve been notified ✓');
   await loadMyData();
 }
 async function recordSettlement(){
@@ -809,7 +1015,7 @@ async function addPayeeEntry(){
   }
 
   const month = date.slice(0,7);
-  const { error } = await sb.from('bill_payee_entries').insert({ user_email:managing.email, payee_id:payeeId, amount, entry_type, note, date, month });
+  const { error } = await sb.from('bill_payee_entries').insert({ user_email:managing.email, payee_id:payeeId, amount, entry_type, note, date, month, entered_by_email:managing.email });
   if(error){ toast('Could not save entry'); return; }
   document.getElementById('pe-new-payee').value=''; document.getElementById('pe-amount').value=''; document.getElementById('pe-note').value='';
   toast('Saved ✓');
@@ -841,25 +1047,35 @@ function renderPayeeBalances(){
   }).join('');
 }
 async function deletePayeeEntry(id){
-  if(!confirm('Delete this entry? Use this to correct a mistake.')) return;
-  const { error } = await sb.from('bill_payee_entries').delete().eq('id',id);
-  if(error){ toast('Could not delete'); return; }
-  toast('Deleted ✓');
+  const reason = prompt('Why are you deleting this entry? (shown to the other person)');
+  if(reason===null) return; // cancelled
+  if(!reason.trim()){ toast('A reason is required so the other person knows why'); return; }
+  const { data, error } = await sb.rpc('delete_payee_entry', { p_entry_id:id, p_reason:reason.trim() });
+  if(error || !data?.ok){ toast('Could not delete — ' + (data?.error || 'try again')); return; }
+  toast('Deleted — they\'ve been notified ✓');
   await loadMyData();
+  await loadOwedToMe();
 }
 
 // ── REVERSE VIEW: other people who logged ME as their party ──
+// v5.0: this used to be read-only (balance + count only). It now carries
+// full entry detail + payeeId so the "owed to you" side can also add
+// entries and delete them, not just view a total.
 let owedToMeRows = [];
 async function loadOwedToMe(){
   const { data: linkedPayees } = await sb.from('bill_payees').select('*').ilike('party_email', managing.email);
   if(!linkedPayees || !linkedPayees.length){ owedToMeRows = []; renderHome(); return; }
   const ids = linkedPayees.map(p=>p.id);
-  const { data: entries } = await sb.from('bill_payee_entries').select('*').in('payee_id', ids);
+  const [{ data: entries }, { data: names }] = await Promise.all([
+    sb.from('bill_payee_entries').select('*').in('payee_id', ids).order('date',{ascending:false}),
+    sb.from('app_users').select('email,name').in('email', linkedPayees.map(p=>p.user_email))
+  ]);
+  const nameMap = Object.fromEntries((names||[]).map(u=>[u.email.toLowerCase(), u.name]));
   owedToMeRows = linkedPayees.map(p=>{
     const es = (entries||[]).filter(e=>e.payee_id===p.id);
     const owe = es.filter(e=>e.entry_type==='owe').reduce((a,x)=>a+Number(x.amount),0);
     const paid = es.filter(e=>e.entry_type==='paid').reduce((a,x)=>a+Number(x.amount),0);
-    return { fromEmail:p.user_email, balance: owe-paid, count: es.length };
+    return { payeeId:p.id, fromEmail:p.user_email, fromName: nameMap[p.user_email.toLowerCase()] || p.user_email, balance: owe-paid, entries: es };
   });
   renderHome();
 }
@@ -867,7 +1083,45 @@ function renderOwedToMe(){
   const el=document.getElementById('owed-to-me-list');
   if(!el) return;
   if(!owedToMeRows.length){ el.innerHTML = `<div class="empty-state"><span>🔁</span>No one has logged owing you anything yet</div>`; return; }
-  el.innerHTML = owedToMeRows.map(r=>`<div class="owed-row settle"><div class="b-left"><div class="b-name">${escapeHtml(r.fromEmail)}</div><div class="b-sub">${r.count} entr${r.count===1?'y':'ies'}</div></div><div class="b-amt ${r.balance>0?'pos':'neg'}">${dhs(Math.max(r.balance,0))}</div></div>`).join('');
+  el.innerHTML = owedToMeRows.map(r=>{
+    const entryRows = r.entries.slice(0,5).map(e=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:.72rem;color:var(--muted);">
+        <span>${e.date} · ${e.entry_type==='owe'?'they logged owing':'settled'} · ${dhs(e.amount)}${e.note?' · '+escapeHtml(e.note):''}</span>
+        <button class="icon-btn" onclick="deletePayeeEntry(${e.id})" title="Delete (mistake?)">🗑️</button>
+      </div>`).join('');
+    return `<div class="owed-row settle" style="flex-direction:column;align-items:stretch;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="b-left"><div class="b-name">${escapeHtml(r.fromName)}</div><div class="b-sub">${r.entries.length} entr${r.entries.length===1?'y':'ies'}</div></div>
+        <div class="b-amt ${r.balance>0?'pos':'neg'}">${dhs(Math.max(r.balance,0))}</div>
+      </div>
+      ${entryRows}
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn btn-ghost" style="flex:1;padding:6px;font-size:.7rem;" onclick="openQuickEntry(${r.payeeId},'owe')">➕ Log entry</button>
+        ${r.balance>0?`<button class="btn btn-ghost" style="flex:1;padding:6px;font-size:.7rem;" onclick="openQuickEntry(${r.payeeId},'paid')">✅ Settle up</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+// Lets the "owed to" side (the party) log an entry directly into the
+// ledger owner's relationship — e.g. record a cash payment received, or
+// note an extra amount now owed — without needing the ower to do it.
+async function openQuickEntry(payeeId, entryType){
+  const row = owedToMeRows.find(r=>r.payeeId===payeeId);
+  if(!row) return;
+  const amountStr = prompt(entryType==='paid' ? `Settling up with ${row.fromName} — amount received:` : `Log an amount ${row.fromName} now owes you:`);
+  if(amountStr===null) return;
+  const amount = parseFloat(amountStr);
+  if(!amount || amount<=0){ toast('Enter a valid amount'); return; }
+  const note = prompt('Add a note (optional):') || '';
+  const date = new Date().toISOString().slice(0,10);
+  const { error } = await sb.from('bill_payee_entries').insert({
+    user_email: row.fromEmail, payee_id: payeeId, amount, entry_type: entryType,
+    note, date, month: date.slice(0,7), entered_by_email: managing.email
+  });
+  if(error){ toast('Could not save — try again'); return; }
+  toast('Saved ✓');
+  await loadMyData();
+  await loadOwedToMe();
 }
 
 // ── ADMIN ──────────────────────────────────────
@@ -990,7 +1244,7 @@ async function loadAdminSpending(){
 }
 async function sendAllReports(){
   if(!confirm('Send every registered user their report right now?')) return;
-  const { error } = await sb.functions.invoke('send-report', { body:{ mode:'all_bill' } });
+  const { error } = await sb.functions.invoke('send-report', { body:{ mode:'all' } });
   toast(error ? 'Send failed — check function logs' : 'Sending to everyone now 📨');
 }
 
