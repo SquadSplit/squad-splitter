@@ -429,24 +429,34 @@ let expenses=[],prevBals=[],settlements=[];
 // expenses, prev_balances, settlements, members_config
 
 // ── INIT ────────────────────────────────────
+// v5.0 fix: previously called sb.auth.getSession() exactly once and only
+// routed in if the session happened to already be ready — on a hard
+// refresh this could resolve before the client finished restoring the
+// session from localStorage, silently leaving a logged-in person on the
+// login screen. onAuthStateChange is now the primary signal (fires once
+// the client is truly ready), with a short getSession() fallback as a
+// safety net.
 window.onload=async()=>{
   if(SUPABASE_URL!=='YOUR_SUPABASE_URL'){
     try{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);isDemoMode=false;}catch(e){isDemoMode=true;}
   }
   await loadMembers();
   buildOTPBoxes();
-  // Security: never trust a cached "who's logged in" blob on its own — a
-  // stale copy could show wrong admin status if permissions changed since.
-  // The only real source of truth is a live, currently-valid Supabase
-  // session, re-checked fresh against the database every single load.
   if(!isDemoMode&&sb){
-    const{data:{session}}=await sb.auth.getSession();
-    if(session?.user?.email){
+    let routed=false;
+    const tryRoute=async(session)=>{
+      if(routed||!session?.user?.email) return;
+      routed=true;
       currentEmail=session.user.email.toLowerCase();
       await routeAfterLogin(true);
-      return;
-    }
-    sessionStorage.removeItem('sq_user'); // no live session — any old cache is meaningless
+    };
+    sb.auth.onAuthStateChange((_evt,session)=>{ tryRoute(session); });
+    setTimeout(async()=>{
+      if(routed) return;
+      const{data:{session}}=await sb.auth.getSession();
+      if(session?.user?.email){ await tryRoute(session); }
+      else { sessionStorage.removeItem('sq_user'); } // no live session — any old cache is meaningless
+    },500);
     return;
   }
   // Demo mode only (no real backend to re-verify against)
@@ -553,14 +563,20 @@ async function verifyOTP(){
 // ── ROUTE: decide Squad Splitter vs Bill Tracker vs not-registered ──
 // This is the single point that turns "a verified email" into "the right
 // screen" — looked up fresh from app_users every time, never guessed.
-async function routeAfterLogin(silent){
+async function routeAfterLogin(silent, _retried){
   if(isDemoMode||!sb){
     selectedId=MEMBERS[0]?.id||null;
     if(selectedId)finishLogin();else if(!silent)showStep(3);
     return;
   }
   const{data,error}=await sb.from('app_users').select('*').ilike('email',currentEmail).maybeSingle();
-  if(error||!data){
+  if(error){
+    console.error('routeAfterLogin lookup error:',error);
+    if(!_retried){ setTimeout(()=>routeAfterLogin(silent,true), 700); return; }
+    if(!silent) showErr('err3','⚠️ Connection hiccup — please try again.');
+    return;
+  }
+  if(!data){
     if(!silent)showStep(3);
     return;
   }
